@@ -67,33 +67,70 @@ class OSA:
     def sech_function(self, x, A, xc, w, y0):
         return self.sech_function_compact(x, [A, xc, w, y0])
 
-    def calc_spectrum_energy(self, spectrum_number):
+    def determine_wavelength_range(self, wavelength):
+        if wavelength < 0:
+            #passthrough for -1
+            return wavelength
+        if wavelength > 100:
+            #I assume it is given in nm
+            return wavelength
+        if wavelength > 0.1 and wavelength < 10:
+            #I assume it is given in um
+            return wavelength * 1e3
+        #else: Wavelength is given in m
+        return wavelength * 1e9
+
+    def calc_single_spectrum_energy(self, spectrum, minimum_wavelength, maximum_wavelength):
+        local_lin_meas_data = spectrum.linear_meas_data
+        local_wl_data = spectrum.wl_data
+        minimum_index = 0
+        maximum_index = 0
+        if minimum_wavelength < local_wl_data[0] or minimum_wavelength < 0:
+            minimum_wavelength = local_wl_data[0]
+            minimum_index = 0
+        else:
+            #Holy shit, that is a crappy algorithm!
+            cur_index_distance = np.abs(local_wl_data[0] - minimum_wavelength)
+            cur_index = 1
+            while np.abs(local_wl_data[cur_index] - minimum_wavelength) < cur_index_distance and cur_index < len(local_wl_data):
+                cur_index_distance = np.abs(local_wl_data[cur_index] - minimum_wavelength)
+                cur_index += 1
+            minimum_index = cur_index
+        if maximum_wavelength > local_wl_data[-1] or maximum_wavelength < 0:
+            maximum_wavelength = local_wl_data[-1]
+            maximum_index = len(local_wl_data) - 1
+        else:
+            #Holy shit, that is a crappy algorithm!
+            cur_index_distance = np.abs(local_wl_data[-1] - maximum_wavelength)
+            cur_index = len(local_wl_data) - 2
+            while np.abs(local_wl_data[cur_index] - maximum_wavelength) < cur_index_distance and cur_index < len(local_wl_data):
+                cur_index_distance = np.abs(local_wl_data[cur_index] - maximum_wavelength)
+                cur_index -= 1
+            maximum_index = cur_index
+        cur_energy = 0
+        full_energy = 0
+        """
+        for j, elem in enumerate(local_lin_meas_data):
+            cur_energy = elem
+            if j == 0 or j == len(local_lin_meas_data) - 1:
+                cur_energy *= 0.5
+            full_energy += cur_energy
+            """
+        for j in range(minimum_index, maximum_index + 1):
+            cur_energy = local_lin_meas_data[j]
+            if j == minimum_index or j == maximum_index:
+                cur_energy *= 0.5
+            full_energy += cur_energy
+        full_energy *= 1e-9
+        return full_energy
+
+    def calc_spectrum_energy(self, spectrum_number, minimum_wavelength = -1, maximum_wavelength = -1):
         spectrum_energies = {}
         if spectrum_number < 0 or spectrum_number > (len(self.spectra) - 1):
             for i in range(len(self.spectra)):
-                local_lin_meas_data = self.spectra[[*self.spectra][i]].linear_meas_data
-                local_wl_data = self.spectra[[*self.spectra][i]].wl_data
-                cur_energy = 0
-                full_energy = 0
-                for j, elem in enumerate(local_lin_meas_data):
-                    cur_energy = elem
-                    if j == 0 or j == len(local_lin_meas_data) - 1:
-                        cur_energy *= 0.5
-                    full_energy += cur_energy
-                full_energy *= 1e-9
-                spectrum_energies[self.spectra[[*self.spectra][i]].spectrum_name] = full_energy
+                spectrum_energies[self.spectra[[*self.spectra][i]].spectrum_name] = self.calc_single_spectrum_energy(self.spectra[[*self.spectra][i]], self.determine_wavelength_range(minimum_wavelength), self.determine_wavelength_range(maximum_wavelength))
         else:
-            local_lin_meas_data = self.spectra[[*self.spectra][i]].linear_meas_data
-            local_wl_data = self.spectra[[*self.spectra][i]].wl_data
-            cur_energy = 0
-            full_energy = 0
-            for j, elem in enumerate(local_lin_meas_data):
-                cur_energy = elem
-                if j == 0 or j == len(local_lin_meas_data) - 1:
-                    cur_energy *= 0.5
-                full_energy += cur_energy
-            full_energy *= 1e-9
-            spectrum_energies[self.spectra[[*self.spectra][spectrum_number]].spectrum_name] = full_energy
+            spectrum_energies[self.spectra[[*self.spectra][spectrum_number]].spectrum_name] = self.calc_single_spectrum_energy(self.spectra[[*self.spectra][spectrum_number]], self.determine_wavelength_range(minimum_wavelength), self.determine_wavelength_range(maximum_wavelength))
         return spectrum_energies
 
 
