@@ -29,11 +29,12 @@ def nth_key(dct, n):
     return next(it)
 
 class OSA_spectrum:
-    def __init__(self, wl_data, linear_meas_data, log_meas_data, spectrum_name):
+    def __init__(self, wl_data, linear_meas_data, log_meas_data, spectrum_name, stack_spectrum = False):
         self.wl_data = wl_data
         self.linear_meas_data = linear_meas_data
         self.log_meas_data = log_meas_data
         self.spectrum_name = spectrum_name
+        self.spectrum_is_stacked = stack_spectrum
         self.fit_function = "None"
         self.fit_meas_data = []
         self.fit_data = []
@@ -164,7 +165,7 @@ class OSA:
                 #    log_shift_factor *= -1
                 log_meas_data = log_meas_data + log_shift_factor
         wl_data = np.asarray(wl_data)
-        self.spectra[spectrum_name] = OSA_spectrum(wl_data, linear_meas_data, log_meas_data, spectrum_name)
+        self.spectra[spectrum_name] = OSA_spectrum(wl_data, linear_meas_data, log_meas_data, spectrum_name, stack_spectrum = stack_spectra)
         
 
     def get_spectrum_data(self, filename, spectrum_name, stack_spectra = False):
@@ -189,6 +190,7 @@ class OSA:
     def plot_spectrum(self, spectrum_number, use_linear_scale = False, x_min = -1, x_max = -1, y_min = -1, y_max = -1, use_grid = False):
         plt.figure()
         plt.xlabel("Wavelength [nm]")
+        spectra_have_been_stacked = False
         if y_max <= y_min:
             adjust_height_freely = True
         else:
@@ -206,6 +208,8 @@ class OSA:
                 else:
                     plt.plot(value.wl_data, value.log_meas_data)
                 legend_entries.append(value.spectrum_name)
+                if value.spectrum_is_stacked:
+                    spectra_have_been_stacked = True
                 if x_min < 0:
                     x_min = value.wl_data[0]
                 if x_max < 0:
@@ -229,12 +233,15 @@ class OSA:
         plt.legend(legend_entries)
         plt.xlim((x_min, x_max))
         plt.ylim((y_min, y_max))
+        if spectra_have_been_stacked:
+            plt.yticks([])
         plt.show()
 
     def save_spectrum(self, spectrum_number, file_name, legend_position = "upper center", file_format = "PNG", use_linear_scale = False, x_min = -1, x_max = -1, y_min = -1, y_max = -1, use_grid = False, with_fit_FWHM = False, plot_title = ""):
         fig = plt.figure()
         ax = plt.subplot(111)
         ax.legend(loc = legend_position)
+        spectra_have_been_stacked = False
         if y_max <= y_min:
             adjust_height_freely = True
         else:
@@ -248,6 +255,8 @@ class OSA:
         plt.grid(use_grid)
         if spectrum_number < 0 or spectrum_number > len(self.spectra) - 1: # plot all
             for key, value in self.spectra.items():
+                if value.spectrum_is_stacked:
+                    spectra_have_been_stacked = True
                 if use_linear_scale:
                     plt.plot(value.wl_data, value.linear_meas_data)
                 else:
@@ -280,6 +289,8 @@ class OSA:
         plt.legend(legend_entries)
         plt.xlim((x_min, x_max))
         plt.ylim((y_min, y_max))
+        if spectra_have_been_stacked:
+            plt.yticks([])
         if plot_title:
             plt.title(plot_title)
         local_file_name = file_name
