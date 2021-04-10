@@ -134,19 +134,32 @@ class OSA:
             spectrum_energies[self.spectra[[*self.spectra][spectrum_number]].spectrum_name] = self.calc_single_spectrum_energy(self.spectra[[*self.spectra][spectrum_number]], self.determine_wavelength_range(minimum_wavelength), self.determine_wavelength_range(maximum_wavelength))
         return spectrum_energies
 
-
     def get_raw_spectrum_data(self, filename, spectrum_name, stack_spectra):
         wl_data = []
         meas_data = []
         with open(filename, 'r') as f:
             lines = f.readlines()
-            for line_number, line in enumerate(lines):
-                if line_number > 30 and (len(line.split(',')) or len(line.split('\t'))) == 2:
-                    line_data = line.split(',')
-                    if len(line_data) != 2:
+            if "AQ6375" in lines[1].split(' '):
+                #Usual OSA
+                for line_number, line in enumerate(lines):
+                    if line_number > 30 and (len(line.split(',')) or len(line.split('\t'))) == 2:
+                        line_data = line.split(',')
+                        if len(line_data) != 2:
+                            line_data = line.split('\t')
+                        wl_data.append(float(line_data[0]))
+                        meas_data.append(float(line_data[1]))
+            else:
+                #Small OSA
+                for line_number, line in enumerate(lines):
+                    if line_number > 1 and len(line.split('\t')) == 2:
                         line_data = line.split('\t')
-                    wl_data.append(float(line_data[0]))
-                    meas_data.append(float(line_data[1]))
+                        if len(line_data) != 2:
+                            line_data = line.split('\t')
+                        wl_data.append(float(line_data[0]))
+                        #adjust to something useful. I assume that 1 in the small OSA is equivalent to 1e-6 in the large OSA
+                        meas_data.append(float(line_data[1]) * 1e-6)
+                        if meas_data[-1] == 0:
+                            meas_data[-1] = 1e-13
         meas_data = np.asarray(meas_data)
         wl_data = np.asarray(wl_data)
         if meas_data[0] < 0:
