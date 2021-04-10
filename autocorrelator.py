@@ -133,7 +133,7 @@ class autocorrelator:
             plt.plot(smoothened_data)
             plt.plot(peaks, smoothened_data[peaks], "x")
             plt.show()
-        if np.abs(aver_distance / (1. / positive_max_frequency)) < error_threshold or np.abs(aver_distance / (1. / positive_max_frequency)) > (1. / error_threshold):
+        if (np.abs(aver_distance / (1. / positive_max_frequency)) < error_threshold or np.abs(aver_distance / (1. / positive_max_frequency)) > (1. / error_threshold)) and use_FFT:
             print("FFT-data and aver_distance-data do not correlate close enough. Exiting code")
             exit()
         if use_FFT:
