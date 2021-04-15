@@ -39,9 +39,16 @@ class autocorrelator:
                 self.file_wide = file_wide
                 self.file_close = file_close
             else:
-                self.get_file_destination(files)
+                if len(files) == 2:
+                    self.get_file_destination(files)
+                else:
+                    self.file_wide = files[0]
+                    self.file_close = files[0]
             if peak_distance < 0:
-                self.get_peak_distance(use_FFT=use_FFT_for_peak, plot_data=plot_distance_data)
+                if len(files) >= 2 or (file_wide and file_close):
+                    self.get_peak_distance(use_FFT=use_FFT_for_peak, plot_data=plot_distance_data)
+                else:
+                    self.get_peak_distance_from_single_file(single_data_file = files[0], use_FFT = use_FFT_for_peak, plot_data = plot_distance_data)
             else:
                 self.peak_distance = peak_distance
             self.prefactor = 1 / self.peak_distance * (self.central_wavelength) / scco.speed_of_light
@@ -87,7 +94,22 @@ class autocorrelator:
             self.file_close = file_1
             self.file_wide = file_2
         print("File_close:", self.file_close, ", File_wide:", self.file_wide)
-        
+
+    def get_peak_distance_from_single_file(self, single_data_file, use_FFT = True, plot_data = True, max_time_window = 1e-3):
+        file_data = self.get_raw_autocorrelation_data(single_data_file)
+        #find center of spectrum/time
+        center_time_val = file_data[0].flat[np.abs(file_data[0]).argmin()]
+        center_time_pos = file_data[0].tolist().index(center_time_val)
+        lower_time_val = center_time_val - (max_time_window / 2)
+        upper_time_val = center_time_val + (max_time_window / 2)
+        closest_lower_time_val = file_data[0].flat[np.abs(file_data[0] - lower_time_val).argmin()]
+        lower_time_pos = file_data[0].tolist().index(closest_lower_time_val)
+        closest_upper_time_val = file_data[0].flat[np.abs(file_data[0] - upper_time_val).argmin()]
+        upper_time_pos = file_data[0].tolist().index(closest_upper_time_val)
+        target_time_scale = np.asarray(file_data[0][lower_time_pos:upper_time_pos])
+        target_val_scale = np.asarray(file_data[1][lower_time_pos:upper_time_pos])
+        self.get_peak_distance(use_FFT = use_FFT, plot_data = plot_data, internal_file_close_data = [target_time_scale, target_val_scale])
+
     def get_peak_distance_from_path_distance(self, path_difference, files, plot_data):
         file_data_I = self.get_raw_autocorrelation_data(files[0])
         file_data_II = self.get_raw_autocorrelation_data(files[1])
@@ -95,6 +117,7 @@ class autocorrelator:
         if plot_data:
             plt.plot(file_data_I[0], file_data_I[1], file_data_II[0], file_data_II[1])
             plt.show()
+            plt.clf()
         #find maximum position
         max_time_I = file_data_I[0][file_data_I[1].tolist().index(np.max(file_data_I[1]))]
         max_time_II = file_data_II[0][file_data_II[1].tolist().index(np.max(file_data_II[1]))]
@@ -111,8 +134,12 @@ class autocorrelator:
         return (2 * path_difference / scco.speed_of_light) / np.abs(max_time_II - max_time_I)
 
 
-    def get_peak_distance(self, f_threshold = 1000, use_FFT = True, plot_data = True, error_threshold = 0.1):
-        time, data = self.get_raw_autocorrelation_data(self.file_close)
+    def get_peak_distance(self, f_threshold = 1000, use_FFT = True, plot_data = True, error_threshold = 0.1, internal_file_close_data = []):
+        if len(internal_file_close_data) < 2:
+            time, data = self.get_raw_autocorrelation_data(self.file_close)
+        else:
+            time = internal_file_close_data[0]
+            data = internal_file_close_data[1]
         smoothened_data = savgol_filter(data, 95, 3)
         fft_example_data = np.fft.fft(smoothened_data)
         frequencies = np.fft.fftfreq(len(smoothened_data), np.abs(time[1] - time[0]))
@@ -120,7 +147,7 @@ class autocorrelator:
         positive_fft_values = np.where(frequencies > f_threshold, fft_example_data, 0)
         positive_max_frequency = positive_frequencies[np.where(np.abs(positive_fft_values) == np.max(np.abs(positive_fft_values)))][0]
 
-        peaks, _ = find_peaks(smoothened_data, prominence=(0.001, 1))
+        peaks, _ = find_peaks(smoothened_data, prominence=(0.001, 10))
         distance_peaks = time[peaks]
         aver_distance = 0
         for i in range(len(distance_peaks) - 1):
@@ -133,6 +160,7 @@ class autocorrelator:
             plt.plot(smoothened_data)
             plt.plot(peaks, smoothened_data[peaks], "x")
             plt.show()
+            plt.clf()
         if (np.abs(aver_distance / (1. / positive_max_frequency)) < error_threshold or np.abs(aver_distance / (1. / positive_max_frequency)) > (1. / error_threshold)) and use_FFT:
             print("FFT-data and aver_distance-data do not correlate close enough. Exiting code")
             exit()
@@ -234,7 +262,7 @@ class autocorrelator:
             Legend_entries.append('Fitted gaussian with AC FWHM = ' + '{0:.2f}'.format(np.abs(self.gaussian_fwhm)) + ' ps\nand pulse FWHM = ' + '{0:.2f}'.format(np.abs(self.gaussian_pulse_fwhm)) + " ps")
         if self.sech_used:
             Legend_entries.append('Fitted sech with AC FWHM = ' + '{0:.2f}'.format(np.abs(self.sech_fwhm)) + ' ps\nand pulse FWHM = ' + '{0:.2f}'.format(np.abs(self.sech_pulse_fwhm)) + " ps")
-        plt.legend(Legend_entries)
+        ax.legend(Legend_entries, loc=legend_location)
         plt.ylabel("Intensity")
         plt.xlabel("Delay [fs]")
         if file_title:
@@ -253,6 +281,7 @@ class autocorrelator:
             if plot_file_name[-4:] != ".png":
                 plot_file_name += ".png"
             plt.savefig(plot_file_name, dpi=600)
+            plt.clf()
         else:
             if plot_file_name[-5:] != ".tikz":
                 plot_file_name += ".tikz"
