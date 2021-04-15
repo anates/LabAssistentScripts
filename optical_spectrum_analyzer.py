@@ -29,9 +29,14 @@ def nth_key(dct, n):
     return next(it)
 
 class OSA_spectrum:
-    def __init__(self, wl_data, linear_meas_data, log_meas_data, spectrum_name, stack_spectrum = False):
+    def __init__(self, wl_data, linear_meas_data, log_meas_data, spectrum_name, linear_data_below_threshold = [], threshold_data = -1, stack_spectrum = False):
         self.wl_data = wl_data
         self.linear_meas_data = linear_meas_data
+        self.threshold_data = threshold_data
+        if threshold_data < 0:
+            self.cut_off_linear_meas_data = self.linear_meas_data.copy()
+        else:
+            self.cut_off_linear_meas_data = linear_data_below_threshold
         self.log_meas_data = log_meas_data
         self.spectrum_name = spectrum_name
         self.spectrum_is_stacked = stack_spectrum
@@ -134,7 +139,7 @@ class OSA:
             spectrum_energies[self.spectra[[*self.spectra][spectrum_number]].spectrum_name] = self.calc_single_spectrum_energy(self.spectra[[*self.spectra][spectrum_number]], self.determine_wavelength_range(minimum_wavelength), self.determine_wavelength_range(maximum_wavelength))
         return spectrum_energies
 
-    def get_raw_spectrum_data(self, filename, spectrum_name, stack_spectra):
+    def get_raw_spectrum_data(self, filename, spectrum_name, data_threshold, stack_spectra):
         wl_data = []
         meas_data = []
         with open(filename, 'r') as f:
@@ -168,21 +173,37 @@ class OSA:
         else:
             linear_meas_data = np.asarray(meas_data)
             log_meas_data = 10 * np.log10(meas_data)
+        if data_threshold > 0:
+            linear_threshold_data_indices = linear_meas_data > data_threshold
+            linear_threshold_data = linear_meas_data.copy()
+            linear_threshold_data[linear_threshold_data_indices] = data_threshold
         if stack_spectra:
             #I assume that the spectra are put into the dictionary in order
-            if len(self.spectra) > 0:
-                log_shift_factor = np.max(list(self.spectra.items())[-1][1].log_meas_data)
-                lin_shift_factor = np.max(list(self.spectra.items())[-1][1].linear_meas_data)
-                linear_meas_data = linear_meas_data + lin_shift_factor
-                #if log_shift_factor < 0:
-                #    log_shift_factor *= -1
-                log_meas_data = log_meas_data + log_shift_factor
+            if data_threshold <= 0:
+                if len(self.spectra) > 0:
+                    log_shift_factor = np.max(list(self.spectra.items())[-1][1].log_meas_data)
+                    lin_shift_factor = np.max(list(self.spectra.items())[-1][1].linear_meas_data)
+                    linear_meas_data = linear_meas_data + lin_shift_factor
+                    #if log_shift_factor < 0:
+                    #    log_shift_factor *= -1
+                    log_meas_data = log_meas_data + log_shift_factor
+            else:
+                if len(self.spectra) > 0:
+                    log_shift_factor = np.max(list(self.spectra.items())[-1][1].log_meas_data)
+                    lin_shift_factor = np.max(list(self.spectra.items())[-1][1].cut_off_linear_meas_data)
+                    linear_threshold_data = linear_threshold_data + lin_shift_factor
+                    #if log_shift_factor < 0:
+                    #    log_shift_factor *= -1
+                    log_meas_data = log_meas_data + log_shift_factor
         wl_data = np.asarray(wl_data)
-        self.spectra[spectrum_name] = OSA_spectrum(wl_data, linear_meas_data, log_meas_data, spectrum_name, stack_spectrum = stack_spectra)
+        if data_threshold > 0:
+            self.spectra[spectrum_name] = OSA_spectrum(wl_data, linear_meas_data, log_meas_data, spectrum_name, linear_data_below_threshold = linear_threshold_data, stack_spectrum = stack_spectra, threshold_data = data_threshold)
+        else:
+            self.spectra[spectrum_name] = OSA_spectrum(wl_data, linear_meas_data, log_meas_data, spectrum_name, stack_spectrum = stack_spectra, threshold_data = data_threshold)
         
 
-    def get_spectrum_data(self, filename, spectrum_name, stack_spectra = False):
-        self.get_raw_spectrum_data(filename, spectrum_name, stack_spectra = stack_spectra)
+    def get_spectrum_data(self, filename, spectrum_name, data_threshold = -1, stack_spectra = False):
+        self.get_raw_spectrum_data(filename, spectrum_name, data_threshold = data_threshold, stack_spectra = stack_spectra)
         return len(self.spectra)
 
     def apply_filter_mirror(self, spectrum_number, filter_mirror):
@@ -192,6 +213,9 @@ class OSA:
                 local_wl_data = self.spectra[[*self.spectra][i]].wl_data
                 interpolated_data = filter_mirror.apply_mirror(local_wl_data, local_lin_meas_data)
                 self.spectra[[*self.spectra][i]].linear_meas_data = np.asarray(interpolated_data[1][:])
+                interpolated_threshold_indices = np.asarray(interpolated_data[1][:]) > self.spectra[[*self.spectra][i]].threshold_data
+                self.spectra[[*self.spectra][i]].cut_off_linear_meas_data = np.asarray(interpolated_data[1][:])
+                self.spectra[[*self.spectra][i]].cut_off_linear_meas_data[interpolated_threshold_indices] =  self.spectra[[*self.spectra][i]].threshold_data
                 self.spectra[[*self.spectra][i]].log_meas_data = 10 * np.log10(interpolated_data[1][:] / 1e-3)
         else:
             local_lin_meas_data = self.spectra[[*self.spectra][spectrum_number]].linear_meas_data
@@ -217,7 +241,7 @@ class OSA:
         if spectrum_number < 0 or spectrum_number > len(self.spectra) - 1: # plot all
             for key, value in self.spectra.items():
                 if use_linear_scale:
-                    plt.plot(value.wl_data, value.linear_meas_data)
+                    plt.plot(value.wl_data, value.cut_off_linear_meas_data)
                 else:
                     plt.plot(value.wl_data, value.log_meas_data)
                 legend_entries.append(value.spectrum_name)
@@ -229,17 +253,17 @@ class OSA:
                     x_max = value.wl_data[-1]
                 if adjust_height_freely:
                     if use_linear_scale:
-                        y_min = np.min([np.min(value.linear_meas_data), y_min])
+                        y_min = np.min([np.min(value.cut_off_linear_meas_data), y_min])
                     else:
                         y_min = np.min([np.min(value.log_meas_data), y_min])
                     if use_linear_scale:
-                        y_max = np.max([np.max(value.linear_meas_data), y_max])
+                        y_max = np.max([np.max(value.cut_off_linear_meas_data), y_max])
                     else:
                         y_max = np.max([np.max(value.log_meas_data), y_max])
         else:
             local_value = self.spectra[[*self.spectra][spectrum_number]]#nth_key(self.spectra, spectrum_number)
             if use_linear_scale:
-                plt.plot(local_value.wl_data, local_value.linear_meas_data)
+                plt.plot(local_value.wl_data, local_value.cut_off_linear_meas_data)
             else:
                 plt.plot(local_value.wl_data, local_value.log_meas_data)
             legend_entries.append(local_value.spectrum_name)
@@ -253,7 +277,6 @@ class OSA:
     def save_spectrum(self, spectrum_number, file_name, legend_position = "upper center", file_format = "PNG", use_linear_scale = False, x_min = -1, x_max = -1, y_min = -1, y_max = -1, use_grid = False, with_fit_FWHM = False, plot_title = ""):
         fig = plt.figure()
         ax = plt.subplot(111)
-        ax.legend(loc = legend_position)
         spectra_have_been_stacked = False
         if y_max <= y_min:
             adjust_height_freely = True
@@ -265,13 +288,13 @@ class OSA:
         else:
             plt.ylabel("Intensity in [dBm/nm]")
         legend_entries = []
-        plt.grid(use_grid)
+        ax.grid(use_grid)
         if spectrum_number < 0 or spectrum_number > len(self.spectra) - 1: # plot all
             for key, value in self.spectra.items():
                 if value.spectrum_is_stacked:
                     spectra_have_been_stacked = True
                 if use_linear_scale:
-                    plt.plot(value.wl_data, value.linear_meas_data)
+                    plt.plot(value.wl_data, value.cut_off_linear_meas_data)
                 else:
                     plt.plot(value.wl_data, value.log_meas_data)
                 legend_entry = value.spectrum_name
@@ -285,21 +308,21 @@ class OSA:
                     x_max = np.max(value.wl_data[-1], x_max)
                 if adjust_height_freely:
                     if use_linear_scale:
-                        y_min = np.min([np.min(value.linear_meas_data), y_min])
+                        y_min = np.min([np.min(value.cut_off_linear_meas_data), y_min])
                     else:
                         y_min = np.min([np.min(value.log_meas_data), y_min])
                     if use_linear_scale:
-                        y_max = np.max([np.max(value.linear_meas_data), y_max])
+                        y_max = np.max([np.max(value.cut_off_linear_meas_data), y_max])
                     else:
                         y_max = np.max([np.max(value.log_meas_data), y_max])
         else:
             local_value = self.spectra[[*self.spectra][spectrum_number]]#nth_key(self.spectra, spectrum_number)
             if use_linear_scale:
-                plt.plot(local_value.wl_data, local_value.linear_meas_data)
+                ax.plot(local_value.wl_data, local_value.cut_off_linear_meas_data)
             else:
-                plt.plot(local_value.wl_data, local_value.log_meas_data)
+                ax.plot(local_value.wl_data, local_value.log_meas_data)
             legend_entries.append(local_value.spectrum_name)
-        plt.legend(legend_entries)
+        ax.legend(legend_entries, loc=legend_position)
         plt.xlim((x_min, x_max))
         plt.ylim((y_min, y_max))
         if spectra_have_been_stacked:
