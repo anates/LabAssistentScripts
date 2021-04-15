@@ -47,8 +47,10 @@ class DILAS_I(LaserDiode):
 
 class DILAS_II(LaserDiode):
     def __init__(self):
-        measured_current_points = [10, 12.5, 15, 17.5, 20]
-        measured_power_points = [1830, 3400, 4940, 6510, 8040]
+        #measured_current_points = [10, 12.5, 15, 17.5, 20]
+        #measured_power_points = [1830, 3400, 4940, 6510, 8040]
+        measured_current_points = [8, 10, 12, 14, 16, 18, 20]
+        measured_power_points = [258, 1978, 3698, 5418, 7138, 8858, 10578]
         super().__init__(measured_current_points, measured_power_points)
         self.name = "Dilas Diode II"
 
@@ -57,8 +59,10 @@ class DILAS_II(LaserDiode):
 
 class DILAS_III(LaserDiode):
     def __init__(self):
-        measured_current_points = [10, 12.5, 15, 17.5, 20]
-        measured_power_points = [2170, 3970, 5800, 7510, 9300]
+        #measured_current_points = [10, 12.5, 15, 17.5, 20]
+        #measured_power_points = [2170, 3970, 5800, 7510, 9300]
+        measured_current_points = [8, 10, 12, 14, 16, 18, 20]
+        measured_power_points = [570, 2470, 4370, 6270, 8170, 10070, 11970]
         super().__init__(measured_current_points, measured_power_points)
         self.name = "Dilas Diode III"
 
