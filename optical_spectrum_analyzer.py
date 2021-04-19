@@ -139,7 +139,7 @@ class OSA:
             spectrum_energies[self.spectra[[*self.spectra][spectrum_number]].spectrum_name] = self.calc_single_spectrum_energy(self.spectra[[*self.spectra][spectrum_number]], self.determine_wavelength_range(minimum_wavelength), self.determine_wavelength_range(maximum_wavelength))
         return spectrum_energies
 
-    def get_raw_spectrum_data(self, filename, spectrum_name, data_threshold, stack_spectra):
+    def get_raw_spectrum_data(self, filename, spectrum_name, data_threshold, stack_spectra, scaling_factor = 1):
         wl_data = []
         meas_data = []
         with open(filename, 'r') as f:
@@ -173,6 +173,7 @@ class OSA:
         else:
             linear_meas_data = np.asarray(meas_data)
             log_meas_data = 10 * np.log10(meas_data)
+        linear_meas_data *= scaling_factor
         if data_threshold > 0:
             linear_threshold_data_indices = linear_meas_data > data_threshold
             linear_threshold_data = linear_meas_data.copy()
@@ -202,8 +203,8 @@ class OSA:
             self.spectra[spectrum_name] = OSA_spectrum(wl_data, linear_meas_data, log_meas_data, spectrum_name, stack_spectrum = stack_spectra, threshold_data = data_threshold)
         
 
-    def get_spectrum_data(self, filename, spectrum_name, data_threshold = -1, stack_spectra = False):
-        self.get_raw_spectrum_data(filename, spectrum_name, data_threshold = data_threshold, stack_spectra = stack_spectra)
+    def get_spectrum_data(self, filename, spectrum_name, data_threshold = -1, stack_spectra = False, scaling_factor = 1):
+        self.get_raw_spectrum_data(filename, spectrum_name, data_threshold = data_threshold, stack_spectra = stack_spectra, scaling_factor = scaling_factor)
         return len(self.spectra)
 
     def apply_filter_mirror(self, spectrum_number, filter_mirror):
@@ -224,7 +225,7 @@ class OSA:
             self.spectra[[*self.spectra][spectrum_number]].linear_meas_data = np.asarray(interpolated_data[1][:])
             self.spectra[[*self.spectra][spectrum_number]].log_meas_data = 10 * np.log10(interpolated_data[1][:] / 1e-3)
 
-    def plot_spectrum(self, spectrum_number, use_linear_scale = False, x_min = -1, x_max = -1, y_min = -1, y_max = -1, use_grid = False):
+    def plot_spectrum(self, spectrum_number, use_linear_scale = False, add_wavenumbers_on_top=False, x_min = -1, x_max = -1, y_min = -1, y_max = -1, use_grid = False):
         plt.figure()
         plt.xlabel("Wavelength [nm]")
         spectra_have_been_stacked = False
@@ -270,11 +271,17 @@ class OSA:
         plt.legend(legend_entries)
         plt.xlim((x_min, x_max))
         plt.ylim((y_min, y_max))
+        if add_wavenumbers_on_top:
+            ax_top = ax.twiny()
+            ax_top.set_xlabel("Wavenumbers [cm^-1]")
+            ax_top.set_xticks(ax.get_xticks())
+            ax_top.set_xbound(ax.get_xbound())
+            ax_top.set_xticklabels([10e6 / (x * 1e-9) for x in ax.get_xticks()])
         if spectra_have_been_stacked:
             plt.yticks([])
         plt.show()
 
-    def save_spectrum(self, spectrum_number, file_name, legend_position = "upper center", file_format = "PNG", use_linear_scale = False, x_min = -1, x_max = -1, y_min = -1, y_max = -1, use_grid = False, with_fit_FWHM = False, plot_title = ""):
+    def save_spectrum(self, spectrum_number, file_name, legend_position = "upper center", file_format = "PNG", use_linear_scale = False, add_wavenumbers_on_top=False, x_min = -1, x_max = -1, y_min = -1, y_max = -1, use_grid = False, with_fit_FWHM = False, plot_title = ""):
         fig = plt.figure()
         ax = plt.subplot(111)
         spectra_have_been_stacked = False
@@ -325,6 +332,15 @@ class OSA:
         ax.legend(legend_entries, loc=legend_position)
         plt.xlim((x_min, x_max))
         plt.ylim((y_min, y_max))
+        if add_wavenumbers_on_top:
+            ax_top = ax.twiny()
+            ax_top.set_xlabel("Wavenumbers [cm^-1]")
+            ax_top.set_xticks(ax.get_xticks())
+            ax_top.set_xbound(ax.get_xbound())
+            ax_top.set_xticklabels([int(10e6 / (x)) for x in ax.get_xticks()])
+            #ax_top.set_xticklabels([int(x) for x in ax.get_xticks()])
+            #ax_top.xaxis.set_major_locator(plt.MaxNLocator())
+
         if spectra_have_been_stacked:
             plt.yticks([])
         if plot_title:
