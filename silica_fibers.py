@@ -42,9 +42,25 @@ class SMF28:
     def __init__(self):
         self.dispersion_data_file = "Dispersion_SMF28.csv"
         self.name = "SMF-28"
-        self.core_diameter = 0
-        self.cladding_diameter = 0
-        self.coating_diameter = 0
+        self.core_diameter = 8.2e-6
+        self.cladding_diameter = 125e-6
+        self.coating_diameter = 250e-6
+
+class LMA25:
+    def __init__(self):
+        self.dispersion_data_file = "Dispersion_SMF28.csv"
+        self.name = "LMA-25"
+        self.core_diameter = 25e-6
+        self.cladding_diameter = 250e-6
+        self.coating_diameter = 400e-6
+
+class UHNA4:
+    def __init__(self):
+        self.dispersion_data_file = "Dispersion_UHNA4.csv"
+        self.name = "UHNA-4"
+        self.core_diameter = 2.2e-6
+        self.cladding_diameter = 125e-6
+        self.coating_diameter = 250e-6
 
 
 class fiber:
@@ -54,6 +70,7 @@ class fiber:
         self.cladding_sizes = cladding_sizes
         self.name = name
         self.coating_size = coating_size
+        self.effective_area = (core_size / 2)**2 * np.pi
         self.beta_vals = []
         self.D_vals = []
         self.wl_vals = []
