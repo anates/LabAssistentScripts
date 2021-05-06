@@ -225,8 +225,9 @@ class OSA:
             self.spectra[[*self.spectra][spectrum_number]].linear_meas_data = np.asarray(interpolated_data[1][:])
             self.spectra[[*self.spectra][spectrum_number]].log_meas_data = 10 * np.log10(interpolated_data[1][:] / 1e-3)
 
-    def plot_spectrum(self, spectrum_number, use_linear_scale = False, add_wavenumbers_on_top=False, x_min = -1, x_max = -1, y_min = -1, y_max = -1, use_grid = False):
-        plt.figure()
+    def plot_spectrum(self, spectrum_number, use_linear_scale = False, add_wavenumbers_on_top=False, with_fit_FWHM = False, x_min = -1, x_max = -1, y_min = -1, y_max = -1, use_grid = False, number_precision = 3):
+        fig = plt.figure()
+        ax = plt.subplot(111)
         plt.xlabel("Wavelength [nm]")
         spectra_have_been_stacked = False
         if y_max <= y_min:
@@ -245,7 +246,10 @@ class OSA:
                     plt.plot(value.wl_data, value.cut_off_linear_meas_data)
                 else:
                     plt.plot(value.wl_data, value.log_meas_data)
-                legend_entries.append(value.spectrum_name)
+                legend_entry = value.spectrum_name
+                if with_fit_FWHM and value.fit_can_be_used:
+                    legend_entry += ", FWHM = " + '{0:.{prec}f}'.format(value.FWHM, prec=number_precision) + " nm, " + '{0:.{prec}f}'.format(value.bandwidth / 1e9, prec=number_precision) + " GHz"
+                legend_entries.append(legend_entry)
                 if value.spectrum_is_stacked:
                     spectra_have_been_stacked = True
                 if x_min < 0:
@@ -276,12 +280,12 @@ class OSA:
             ax_top.set_xlabel("Wavenumbers [cm^-1]")
             ax_top.set_xticks(ax.get_xticks())
             ax_top.set_xbound(ax.get_xbound())
-            ax_top.set_xticklabels([10e6 / (x * 1e-9) for x in ax.get_xticks()])
+            ax_top.set_xticklabels([(int)(10e6 / x) for x in ax.get_xticks()])
         if spectra_have_been_stacked:
             plt.yticks([])
         plt.show()
 
-    def save_spectrum(self, spectrum_number, file_name, legend_position = "upper center", file_format = "PNG", use_linear_scale = False, add_wavenumbers_on_top=False, x_min = -1, x_max = -1, y_min = -1, y_max = -1, use_grid = False, with_fit_FWHM = False, plot_title = ""):
+    def save_spectrum(self, spectrum_number, file_name, legend_position = "upper center", file_format = "PNG", use_linear_scale = False, add_wavenumbers_on_top=False, x_min = -1, x_max = -1, y_min = -1, y_max = -1, use_grid = False, with_fit_FWHM = False, plot_title = "", number_precision = 3):
         fig = plt.figure()
         ax = plt.subplot(111)
         spectra_have_been_stacked = False
@@ -306,7 +310,7 @@ class OSA:
                     plt.plot(value.wl_data, value.log_meas_data)
                 legend_entry = value.spectrum_name
                 if with_fit_FWHM and value.fit_can_be_used:
-                    legend_entry += ", FWHM = " + '{0:.2f}'.format(value.FWHM) + " nm, " + '{0:.2f}'.format(value.bandwidth / 1e9) + " THz"
+                    legend_entry += ", FWHM = " + '{0:.{prec}f}'.format(value.FWHM, prec=number_precision) + " nm, " + '{0:.{prec}f}'.format(value.bandwidth / 1e9, prec=number_precision) + " GHz"
                 legend_entries.append(legend_entry)
 
                 if x_min < 0:
@@ -329,7 +333,18 @@ class OSA:
             else:
                 ax.plot(local_value.wl_data, local_value.log_meas_data)
             legend_entries.append(local_value.spectrum_name)
-        ax.legend(legend_entries, loc=legend_position)
+        if "outside" in legend_position:
+            outside_legend_position = legend_position.split(" ")[1] + " " + legend_position.split(" ")[2]
+            anchor_pos = (0, 0)
+            if "lower left" in legend_position:
+                anchor_pos = (1.04, 0)
+            if "center left" in legend_position:
+                anchor_pos = (1.04, 0.5)
+            if "upper left" in legend_position:
+                anchor_pos = (1.04, 1)
+            ax.legend(legend_entries, bbox_to_anchor = anchor_pos, loc = outside_legend_position)
+        else:
+            ax.legend(legend_entries, loc=legend_position)
         plt.xlim((x_min, x_max))
         plt.ylim((y_min, y_max))
         if add_wavenumbers_on_top:
@@ -351,12 +366,18 @@ class OSA:
                 local_file_name += ".png"
             plt.savefig(local_file_name, bbox_inches="tight", dpi=600)
         else:
-            if local_file_name[-5:] != ".tikz":
-                local_file_name += ".tikz"
-            tikzplotlib.save(local_file_name)
+            if file_format == "PGF":
+                if local_file_name[-4:] != ".pgf":
+                    local_file_name += ".pgf"
+                plt.savefig(local_file_name, bbox_inches="tight", dpi=600)
+            else:
+                if local_file_name[-5:] != ".tikz":
+                    local_file_name += ".tikz"
+                tikzplotlib.clean_figure(target_resolution=300)
+                tikzplotlib.save(local_file_name)
         plt.clf()
 
-    def fit_spectrum(self, external_spectrum_number = -1, estimated_wavelength = 0, fit_function = 'Gaussian'):
+    def fit_spectrum(self, external_spectrum_number = -1, estimated_wavelength = 0, minimum_wavelength = -np.inf, maximum_wavelength = np.inf, fit_function = 'Gaussian'):
         #find peak
         central_wavelength = estimated_wavelength
         if external_spectrum_number < 0:
@@ -366,22 +387,43 @@ class OSA:
                 if len(spectrum.wl_data[peaks]) > 0:
                     central_wavelength = float(spectrum.wl_data[peaks][0])
                 if fit_function == "Gaussian":
-                    popt, pcopt = curve_fit(self.gaussian_function, spectrum.wl_data, spectrum.linear_meas_data, p0 = [np.max(spectrum.linear_meas_data), 1, central_wavelength, 0])
+                    if minimum_wavelength > spectrum.wl_data[0] or maximum_wavelength < spectrum.wl_data[-1]:
+                        center_wl_val = spectrum.wl_data.flat[np.abs(spectrum.wl_data - estimated_wavelength).argmin()]
+                        center_wl_pos = spectrum.wl_data.tolist().index(center_wl_val)
+                        if minimum_wavelength <= spectrum.wl_data[0]:
+                            lower_wl_val = spectrum.wl_data[0]
+                        else:
+                            lower_wl_val = minimum_wavelength
+                        if maximum_wavelength >= spectrum.wl_data[-1]:
+                            upper_wl_val = spectrum.wl_data[-1]
+                        else:
+                            upper_wl_val = maximum_wavelength
+                        closest_lower_wl_val = spectrum.wl_data.flat[np.abs(spectrum.wl_data - lower_wl_val).argmin()]
+                        lower_wl_pos = spectrum.wl_data.tolist().index(closest_lower_wl_val)
+                        closest_upper_wl_val = spectrum.wl_data.flat[np.abs(spectrum.wl_data - upper_wl_val).argmin()]
+                        upper_wl_pos = spectrum.wl_data.tolist().index(closest_upper_wl_val)
+                        target_wl_scale = np.asarray(spectrum.wl_data[lower_wl_pos:upper_wl_pos])
+                        target_val_scale = np.asarray(spectrum.linear_meas_data[lower_wl_pos:upper_wl_pos])
+                    else:
+                        target_wl_scale = spectrum.wl_data[:]
+                        target_val_scale = spectrum.linear_meas_data[:]
+
+                    popt, pcopt = curve_fit(self.gaussian_function, target_wl_scale, target_val_scale, p0 = [np.max(target_val_scale), 1, estimated_wavelength, 0])
                     
-                    print(popt[1])
-                    print(popt)
+                    print("Estimated bandwidth:", popt[1])
+                    print("Estimated central wavelength:", popt[2])
                     plt.clf()
                     plt.plot(self.spectra[[*self.spectra][spectrum_number]].wl_data, self.spectra[[*self.spectra][spectrum_number]].linear_meas_data, self.spectra[[*self.spectra][spectrum_number]].wl_data, self.gaussian_function_compact(self.spectra[[*self.spectra][spectrum_number]].wl_data, popt))
                     plt.show()
                     
                     self.spectra[[*self.spectra][spectrum_number]].fit_function = "Gaussian"
                     self.spectra[[*self.spectra][spectrum_number]].FWHM = popt[1]
-                    self.spectra[[*self.spectra][spectrum_number]].bandwidth = scco.speed_of_light / ((central_wavelength - popt[1] / 2) * 1e-9) - scco.speed_of_light / ((central_wavelength + popt[1] / 2) * 1e-9)
+                    self.spectra[[*self.spectra][spectrum_number]].bandwidth = scco.speed_of_light / ((popt[2] - popt[1] / 2) * 1e-9) - scco.speed_of_light / ((popt[2] + popt[1] / 2) * 1e-9)
                 else:
-                    popt, pcopt = curve_fit(self.sech_function, spectrum.wl_data, spectrum.linear_meas_data, p0 = [np.max(spectrum.linear_meas_data), 1, central_wavelength, 0])
+                    popt, pcopt = curve_fit(self.sech_function, spectrum.wl_data, spectrum.linear_meas_data, p0 = [np.max(spectrum.linear_meas_data), 1, estimated_wavelength, 0])
                     self.spectra[[*self.spectra][spectrum_number]].fit_function = "Sech"
                     self.spectra[[*self.spectra][spectrum_number]].FWHM = 2 * np.log(2 + np.sqrt(3)) * popt[1]
-                    self.spectra[[*self.spectra][spectrum_number]].bandwidth = scco.speed_of_light / ((central_wavelength - self.spectra[[*self.spectra][spectrum_number]].FWHM / 2) * 1e-9) - scco.speed_of_light / ((central_wavelength + self.spectra[[*self.spectra][spectrum_number]].FWHM / 2) * 1e-9)
+                    self.spectra[[*self.spectra][spectrum_number]].bandwidth = scco.speed_of_light / ((popt[2] - self.spectra[[*self.spectra][spectrum_number]].FWHM / 2) * 1e-9) - scco.speed_of_light / ((popt[2] + self.spectra[[*self.spectra][spectrum_number]].FWHM / 2) * 1e-9)
                 self.spectra[[*self.spectra][spectrum_number]].fit_meas_data = self.gaussian_function_compact(spectrum.wl_data, popt)
                 self.spectra[[*self.spectra][spectrum_number]].fit_data = popt
                 self.spectra[[*self.spectra][spectrum_number]].fit_can_be_used = True
@@ -392,22 +434,43 @@ class OSA:
             if len(spectrum.wl_data[peaks]) > 0:
                 central_wavelength = float(spectrum.wl_data[peaks][0])
             if fit_function == "Gaussian":
-                popt, pcopt = curve_fit(self.gaussian_function, spectrum.wl_data, spectrum.linear_meas_data, p0 = [np.max(spectrum.linear_meas_data), 1, central_wavelength, 0])
+                if minimum_wavelength > spectrum.wl_data[0] or maximum_wavelength < spectrum.wl_data[-1]:
+                    center_wl_val = spectrum.wl_data.flat[np.abs(spectrum.wl_data - estimated_wavelength).argmin()]
+                    center_wl_pos = spectrum.wl_data.tolist().index(center_wl_val)
+                    if minimum_wavelength <= spectrum.wl_data[0]:
+                        lower_wl_val = spectrum.wl_data[0]
+                    else:
+                        lower_wl_val = minimum_wavelength
+                    if maximum_wavelength >= spectrum.wl_data[-1]:
+                        upper_wl_val = spectrum.wl_data[-1]
+                    else:
+                        upper_wl_val = maximum_wavelength
+                    closest_lower_wl_val = spectrum.wl_data.flat[np.abs(spectrum.wl_data - lower_wl_val).argmin()]
+                    lower_wl_pos = spectrum.wl_data.tolist().index(closest_lower_wl_val)
+                    closest_upper_wl_val = spectrum.wl_data.flat[np.abs(spectrum.wl_data - upper_wl_val).argmin()]
+                    upper_wl_pos = spectrum.wl_data.tolist().index(closest_upper_wl_val)
+                    target_wl_scale = np.asarray(spectrum.wl_data[lower_wl_pos:upper_wl_pos])
+                    target_val_scale = np.asarray(spectrum.linear_meas_data[lower_wl_pos:upper_wl_pos])
+                else:
+                    target_wl_scale = spectrum.wl_data[:]
+                    target_val_scale = spectrum.linear_meas_data[:]
+
+                popt, pcopt = curve_fit(self.gaussian_function, target_wl_scale, target_val_scale, p0 = [np.max(target_val_scale), 1, estimated_wavelength, 0])
                 
-                print(popt[1])
-                print(popt)
+                print("Estimated bandwidth:", popt[1])
+                print("Estimated central wavelength:", popt[2])
                 plt.clf()
                 plt.plot(self.spectra[[*self.spectra][spectrum_number]].wl_data, self.spectra[[*self.spectra][spectrum_number]].linear_meas_data, self.spectra[[*self.spectra][spectrum_number]].wl_data, self.gaussian_function_compact(self.spectra[[*self.spectra][spectrum_number]].wl_data, popt))
                 plt.show()
                 
                 self.spectra[[*self.spectra][spectrum_number]].fit_function = "Gaussian"
                 self.spectra[[*self.spectra][spectrum_number]].FWHM = popt[1]
-                self.spectra[[*self.spectra][spectrum_number]].bandwidth = scco.speed_of_light / ((central_wavelength - popt[1] / 2) * 1e-9) - scco.speed_of_light / ((central_wavelength + popt[1] / 2) * 1e-9)
+                self.spectra[[*self.spectra][spectrum_number]].bandwidth = scco.speed_of_light / ((popt[2] - popt[1] / 2) * 1e-9) - scco.speed_of_light / ((popt[2] + popt[1] / 2) * 1e-9)
             else:
-                popt, pcopt = curve_fit(self.sech_function, spectrum.wl_data, spectrum.linear_meas_data, p0 = [np.max(spectrum.linear_meas_data), 1, central_wavelength, 0])
+                popt, pcopt = curve_fit(self.sech_function, spectrum.wl_data, spectrum.linear_meas_data, p0 = [np.max(spectrum.linear_meas_data), 1, estimated_wavelength, 0])
                 self.spectra[[*self.spectra][spectrum_number]].fit_function = "Sech"
                 self.spectra[[*self.spectra][spectrum_number]].FWHM = 2 * np.log(2 + np.sqrt(3)) * popt[1]
-                self.spectra[[*self.spectra][spectrum_number]].bandwidth = scco.speed_of_light / ((central_wavelength - self.spectra[[*self.spectra][spectrum_number]].FWHM / 2) * 1e-9) - scco.speed_of_light / ((central_wavelength + self.spectra[[*self.spectra][spectrum_number]].FWHM / 2) * 1e-9)
+                self.spectra[[*self.spectra][spectrum_number]].bandwidth = scco.speed_of_light / ((popt[2] - self.spectra[[*self.spectra][spectrum_number]].FWHM / 2) * 1e-9) - scco.speed_of_light / ((popt[2] + self.spectra[[*self.spectra][spectrum_number]].FWHM / 2) * 1e-9)
             self.spectra[[*self.spectra][spectrum_number]].fit_meas_data = self.gaussian_function_compact(spectrum.wl_data, popt)
             self.spectra[[*self.spectra][spectrum_number]].fit_data = popt
             self.spectra[[*self.spectra][spectrum_number]].fit_can_be_used = True
