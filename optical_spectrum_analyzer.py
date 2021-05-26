@@ -5,10 +5,12 @@ import numpy as np
 import scipy.constants as scco
 from scipy.signal import butter, lfilter, freqz, filtfilt, find_peaks, savgol_filter
 from scipy.integrate import solve_ivp
+import matplotlib as mpl
 from matplotlib import pyplot as plt
 from scipy.optimize import curve_fit
 from scipy import interpolate
 import tikzplotlib
+from labellines import labelLine, labelLines
 
 import math
 from string import Template
@@ -23,13 +25,19 @@ from itertools import islice
 
 from filter_mirrors import *
 
+pgf_with_latex = {
+    "pgf.preamble":[r"\usepackage[detect-all]{siunitx}",]
+}
+
+mpl.rcParams.update(pgf_with_latex)
+
 def nth_key(dct, n):
     it = iter(dct)
     next(islice(it, n, n), None)
     return next(it)
 
 class OSA_spectrum:
-    def __init__(self, wl_data, linear_meas_data, log_meas_data, spectrum_name, linear_data_below_threshold = [], threshold_data = -1, stack_spectrum = False):
+    def __init__(self, wl_data, linear_meas_data, log_meas_data, spectrum_name, linear_data_below_threshold = [], normalized_data = [], normalized_data_below_threshold = [], normalized_log_data = [], normalized_log_data_below_threshold = [], threshold_data = -1, stack_spectrum = False):
         self.wl_data = wl_data
         self.linear_meas_data = linear_meas_data
         self.threshold_data = threshold_data
@@ -38,6 +46,10 @@ class OSA_spectrum:
         else:
             self.cut_off_linear_meas_data = linear_data_below_threshold
         self.log_meas_data = log_meas_data
+        self.normalized_data = normalized_data
+        self.normalized_data_below_threshold = normalized_data_below_threshold
+        self.normalized_log_data = normalized_log_data
+        self.normalized_log_data_below_treshold = normalized_log_data_below_threshold
         self.spectrum_name = spectrum_name
         self.spectrum_is_stacked = stack_spectrum
         self.fit_function = "None"
@@ -173,7 +185,16 @@ class OSA:
         else:
             linear_meas_data = np.asarray(meas_data)
             log_meas_data = 10 * np.log10(meas_data)
+        #Applying scaling/etc
         linear_meas_data *= scaling_factor
+        normalized_linear_meas_data = linear_meas_data.copy()
+        normalized_linear_meas_data -= np.min(normalized_linear_meas_data)
+        normalized_linear_meas_data /= np.max(normalized_linear_meas_data)
+
+        normalized_log_meas_data = log_meas_data.copy()
+        normalized_log_meas_data -= np.min(normalized_log_meas_data)
+        normalized_log_meas_data /= np.max(normalized_log_meas_data)
+
         if data_threshold > 0:
             linear_threshold_data_indices = linear_meas_data > data_threshold
             linear_threshold_data = linear_meas_data.copy()
@@ -182,25 +203,29 @@ class OSA:
             #I assume that the spectra are put into the dictionary in order
             if data_threshold <= 0:
                 if len(self.spectra) > 0:
-                    log_shift_factor = np.max(list(self.spectra.items())[-1][1].log_meas_data)
+                    log_shift_factor = np.max(list(self.spectra.items())[-1][1].log_meas_data) - np.min(log_meas_data)
                     lin_shift_factor = np.max(list(self.spectra.items())[-1][1].linear_meas_data)
+                    normalized_lin_shift_factor = np.max(list(self.spectra.items())[-1][1].normalized_data)
+                    normalized_log_shift_factor = np.max(list(self.spectra.items())[-1][1].normalized_log_data)
                     linear_meas_data = linear_meas_data + lin_shift_factor
-                    #if log_shift_factor < 0:
-                    #    log_shift_factor *= -1
                     log_meas_data = log_meas_data + log_shift_factor
+                    normalized_linear_meas_data += normalized_lin_shift_factor
+                    normalized_log_meas_data += normalized_log_shift_factor
             else:
                 if len(self.spectra) > 0:
                     log_shift_factor = np.max(list(self.spectra.items())[-1][1].log_meas_data)
                     lin_shift_factor = np.max(list(self.spectra.items())[-1][1].cut_off_linear_meas_data)
+                    normalized_lin_shift_factor = np.max(list(self.spectra.items())[-1][1].normalized_data)
+                    normalized_log_shift_factor = np.max(list(self.spectra.items())[-1][1].normalized_log_data)
                     linear_threshold_data = linear_threshold_data + lin_shift_factor
-                    #if log_shift_factor < 0:
-                    #    log_shift_factor *= -1
                     log_meas_data = log_meas_data + log_shift_factor
+                    normalized_linear_meas_data += normalized_lin_shift_factor
+                    normalized_log_meas_data += normalized_log_meas_data
         wl_data = np.asarray(wl_data)
         if data_threshold > 0:
-            self.spectra[spectrum_name] = OSA_spectrum(wl_data, linear_meas_data, log_meas_data, spectrum_name, linear_data_below_threshold = linear_threshold_data, stack_spectrum = stack_spectra, threshold_data = data_threshold)
+            self.spectra[spectrum_name] = OSA_spectrum(wl_data, linear_meas_data, log_meas_data, spectrum_name, linear_data_below_threshold = linear_threshold_data, normalized_data=normalized_linear_meas_data, normalized_log_data = normalized_log_meas_data, stack_spectrum = stack_spectra, threshold_data = data_threshold)
         else:
-            self.spectra[spectrum_name] = OSA_spectrum(wl_data, linear_meas_data, log_meas_data, spectrum_name, stack_spectrum = stack_spectra, threshold_data = data_threshold)
+            self.spectra[spectrum_name] = OSA_spectrum(wl_data, linear_meas_data, log_meas_data, spectrum_name, stack_spectrum = stack_spectra, normalized_data=normalized_linear_meas_data, normalized_log_data = normalized_log_meas_data, threshold_data = data_threshold)
         
 
     def get_spectrum_data(self, filename, spectrum_name, data_threshold = -1, stack_spectra = False, scaling_factor = 1):
@@ -225,7 +250,8 @@ class OSA:
             self.spectra[[*self.spectra][spectrum_number]].linear_meas_data = np.asarray(interpolated_data[1][:])
             self.spectra[[*self.spectra][spectrum_number]].log_meas_data = 10 * np.log10(interpolated_data[1][:] / 1e-3)
 
-    def plot_spectrum(self, spectrum_number, use_linear_scale = False, add_wavenumbers_on_top=False, with_fit_FWHM = False, x_min = -1, x_max = -1, y_min = -1, y_max = -1, use_grid = False, number_precision = 3):
+    def plot_spectrum(self, spectrum_number, use_linear_scale = False, use_normalized_data = False, add_wavenumbers_on_top=False, with_fit_FWHM = False, x_min = -1, x_max = -1, y_min = -1, y_max = -1, use_grid = False, number_precision = 3, put_legend_in_lines = False, legend_in_line_xvals = []):
+        
         fig = plt.figure()
         ax = plt.subplot(111)
         plt.xlabel("Wavelength [nm]")
@@ -234,22 +260,34 @@ class OSA:
             adjust_height_freely = True
         else:
             adjust_height_freely = False
-        if use_linear_scale:
-            plt.ylabel("Intensity in [mW/nm]")
+        if not use_normalized_data:
+            if use_linear_scale:
+                plt.ylabel("Intensity in [mW/nm]")
+            else:
+                plt.ylabel("Intensity in [dBm/nm]")
         else:
-            plt.ylabel("Intensity in [dBm/nm]")
+            if use_linear_scale:
+                plt.ylabel("Intensity in [mW/nm], normalized")
+            else:
+                plt.ylabel("Intensity in [dBm/nm], normalized")
         legend_entries = []
         plt.grid(use_grid)
         if spectrum_number < 0 or spectrum_number > len(self.spectra) - 1: # plot all
             for key, value in self.spectra.items():
-                if use_linear_scale:
-                    plt.plot(value.wl_data, value.cut_off_linear_meas_data)
-                else:
-                    plt.plot(value.wl_data, value.log_meas_data)
                 legend_entry = value.spectrum_name
                 if with_fit_FWHM and value.fit_can_be_used:
                     legend_entry += ", FWHM = " + '{0:.{prec}f}'.format(value.FWHM, prec=number_precision) + " nm, " + '{0:.{prec}f}'.format(value.bandwidth / 1e9, prec=number_precision) + " GHz"
-                legend_entries.append(legend_entry)
+                if not use_normalized_data:
+                    if use_linear_scale:
+                        plt.plot(value.wl_data, value.cut_off_linear_meas_data, label = legend_entry)
+                    else:
+                        plt.plot(value.wl_data, value.log_meas_data, label=legend_entry)
+                else:
+                    if use_linear_scale:
+                        plt.plot(value.wl_data, value.normalized_data, label=legend_entry)
+                    else:
+                        plt.plot(value.wl_data, value.normalized_log_data, label=legend_entry)
+                #legend_entries.append(legend_entry)
                 if value.spectrum_is_stacked:
                     spectra_have_been_stacked = True
                 if x_min < 0:
@@ -257,22 +295,36 @@ class OSA:
                 if x_max < 0:
                     x_max = value.wl_data[-1]
                 if adjust_height_freely:
-                    if use_linear_scale:
-                        y_min = np.min([np.min(value.cut_off_linear_meas_data), y_min])
+                    if not use_normalized_data:
+                        if use_linear_scale:
+                            y_min = np.min([np.min(value.cut_off_linear_meas_data), y_min])
+                        else:
+                            y_min = np.min([np.min(value.log_meas_data), y_min])
+                        if use_linear_scale:
+                            y_max = np.max([np.max(value.cut_off_linear_meas_data), y_max])
+                        else:
+                            y_max = np.max([np.max(value.log_meas_data), y_max])
                     else:
-                        y_min = np.min([np.min(value.log_meas_data), y_min])
-                    if use_linear_scale:
-                        y_max = np.max([np.max(value.cut_off_linear_meas_data), y_max])
-                    else:
-                        y_max = np.max([np.max(value.log_meas_data), y_max])
+                        if use_linear_scale:
+                            y_min = np.min([np.min(value.normalized_data), y_min])
+                            y_max = np.max([np.max(value.normalized_data), y_max])
+                        else:
+                            y_min = np.min([np.min(value.normalized_log_data), y_min])
+                            y_max = np.max([np.max(value.normalized_log_data), y_max])
         else:
             local_value = self.spectra[[*self.spectra][spectrum_number]]#nth_key(self.spectra, spectrum_number)
             if use_linear_scale:
-                plt.plot(local_value.wl_data, local_value.cut_off_linear_meas_data)
+                plt.plot(local_value.wl_data, local_value.cut_off_linear_meas_data, label=local_value.spectrum_name)
             else:
-                plt.plot(local_value.wl_data, local_value.log_meas_data)
-            legend_entries.append(local_value.spectrum_name)
-        plt.legend(legend_entries)
+                plt.plot(local_value.wl_data, local_value.log_meas_data, label=local_value.spectrum_name)
+        if put_legend_in_lines:
+            if not legend_in_line_xvals:
+                labelLines(plt.gca().get_lines())
+            else:
+                print(legend_in_line_xvals)
+                labelLines(plt.gca().get_lines(), xvals = legend_in_line_xvals)
+        else:
+            plt.legend()
         plt.xlim((x_min, x_max))
         plt.ylim((y_min, y_max))
         if add_wavenumbers_on_top:
@@ -285,7 +337,8 @@ class OSA:
             plt.yticks([])
         plt.show()
 
-    def save_spectrum(self, spectrum_number, file_name, legend_position = "upper center", file_format = "PNG", use_linear_scale = False, add_wavenumbers_on_top=False, x_min = -1, x_max = -1, y_min = -1, y_max = -1, use_grid = False, with_fit_FWHM = False, plot_title = "", number_precision = 3):
+    def save_spectrum(self, spectrum_number, file_name, legend_position = "upper center", file_format = "PNG", use_linear_scale = False, use_normalized_data = False, add_wavenumbers_on_top=False, x_min = -1, x_max = -1, y_min = -1, y_max = -1, use_grid = False, with_fit_FWHM = False, plot_title = "", number_precision = 3, put_legend_in_lines = False, legend_in_line_xvals = []):
+
         fig = plt.figure()
         ax = plt.subplot(111)
         spectra_have_been_stacked = False
@@ -294,38 +347,58 @@ class OSA:
         else:
             adjust_height_freely = False
         plt.xlabel("Wavelength [nm]")
-        if use_linear_scale:
-            plt.ylabel("Intensity in [mW/nm]")
+        if not use_normalized_data:
+            if use_linear_scale:
+                plt.ylabel("Intensity in [mW/nm]")
+            else:
+                plt.ylabel("Intensity in [dBm/nm]")
         else:
-            plt.ylabel("Intensity in [dBm/nm]")
+            if use_linear_scale:
+                plt.ylabel("Intensity in [mW/nm], normalized")
+            else:
+                plt.ylabel("Intensity in [dBm/nm], normalized")
         legend_entries = []
         ax.grid(use_grid)
         if spectrum_number < 0 or spectrum_number > len(self.spectra) - 1: # plot all
             for key, value in self.spectra.items():
-                if value.spectrum_is_stacked:
-                    spectra_have_been_stacked = True
-                if use_linear_scale:
-                    plt.plot(value.wl_data, value.cut_off_linear_meas_data)
-                else:
-                    plt.plot(value.wl_data, value.log_meas_data)
                 legend_entry = value.spectrum_name
                 if with_fit_FWHM and value.fit_can_be_used:
                     legend_entry += ", FWHM = " + '{0:.{prec}f}'.format(value.FWHM, prec=number_precision) + " nm, " + '{0:.{prec}f}'.format(value.bandwidth / 1e9, prec=number_precision) + " GHz"
                 legend_entries.append(legend_entry)
+                if value.spectrum_is_stacked:
+                    spectra_have_been_stacked = True
+                if not use_normalized_data:
+                    if use_linear_scale:
+                        plt.plot(value.wl_data, value.cut_off_linear_meas_data, label=legend_entry)
+                    else:
+                        plt.plot(value.wl_data, value.log_meas_data, label = legend_entry)
+                else:
+                    if use_linear_scale:
+                        plt.plot(value.wl_data, value.normalized_data, label=legend_entry)
+                    else:
+                        plt.plot(value.wl_data, value.normalized_log_data, label=legend_entry)
 
                 if x_min < 0:
                     x_min = np.min(value.wl_data[0], x_min)
                 if x_max < 0:
                     x_max = np.max(value.wl_data[-1], x_max)
                 if adjust_height_freely:
-                    if use_linear_scale:
-                        y_min = np.min([np.min(value.cut_off_linear_meas_data), y_min])
+                    if not use_normalized_data:
+                        if use_linear_scale:
+                            y_min = np.min([np.min(value.cut_off_linear_meas_data), y_min])
+                        else:
+                            y_min = np.min([np.min(value.log_meas_data), y_min])
+                        if use_linear_scale:
+                            y_max = np.max([np.max(value.cut_off_linear_meas_data), y_max])
+                        else:
+                            y_max = np.max([np.max(value.log_meas_data), y_max])
                     else:
-                        y_min = np.min([np.min(value.log_meas_data), y_min])
-                    if use_linear_scale:
-                        y_max = np.max([np.max(value.cut_off_linear_meas_data), y_max])
-                    else:
-                        y_max = np.max([np.max(value.log_meas_data), y_max])
+                        if use_linear_scale:
+                            y_min = np.min([np.min(value.normalized_data), y_min])
+                            y_max = np.max([np.max(value.normalized_data), y_max])
+                        else:
+                            y_min = np.min([np.min(value.normalized_log_data), y_min])
+                            y_max = np.max([np.max(value.normalized_log_data), y_max])
         else:
             local_value = self.spectra[[*self.spectra][spectrum_number]]#nth_key(self.spectra, spectrum_number)
             if use_linear_scale:
@@ -333,23 +406,33 @@ class OSA:
             else:
                 ax.plot(local_value.wl_data, local_value.log_meas_data)
             legend_entries.append(local_value.spectrum_name)
-        if "outside" in legend_position:
-            outside_legend_position = legend_position.split(" ")[1] + " " + legend_position.split(" ")[2]
-            anchor_pos = (0, 0)
-            if "lower left" in legend_position:
-                anchor_pos = (1.04, 0)
-            if "center left" in legend_position:
-                anchor_pos = (1.04, 0.5)
-            if "upper left" in legend_position:
-                anchor_pos = (1.04, 1)
-            ax.legend(legend_entries, bbox_to_anchor = anchor_pos, loc = outside_legend_position)
+        if put_legend_in_lines:
+            if not legend_in_line_xvals:
+                labelLines(plt.gca().get_lines())
+            else:
+                print(legend_in_line_xvals)
+                labelLines(plt.gca().get_lines(), xvals = legend_in_line_xvals)
         else:
-            ax.legend(legend_entries, loc=legend_position)
+            if "outside" in legend_position:
+                outside_legend_position = legend_position.split(" ")[1] + " " + legend_position.split(" ")[2]
+                anchor_pos = (0, 0)
+                if "lower left" in legend_position:
+                    anchor_pos = (1.04, 0)
+                if "center left" in legend_position:
+                    anchor_pos = (1.04, 0.5)
+                if "upper left" in legend_position:
+                    anchor_pos = (1.04, 1)
+                ax.legend(legend_entries, bbox_to_anchor = anchor_pos, loc = outside_legend_position)
+            else:
+                ax.legend(legend_entries, loc=legend_position)
         plt.xlim((x_min, x_max))
         plt.ylim((y_min, y_max))
         if add_wavenumbers_on_top:
             ax_top = ax.twiny()
-            ax_top.set_xlabel("Wavenumbers [cm^-1]")
+            if file_format == "TIKZ":
+                ax_top.set_xlabel("Wavenumbers " + r'$\left\[cm^-1\right\]$')
+            else:
+                ax_top.set_xlabel("Wavenumbers [cm^-1]")
             ax_top.set_xticks(ax.get_xticks())
             ax_top.set_xbound(ax.get_xbound())
             ax_top.set_xticklabels([int(10e6 / (x)) for x in ax.get_xticks()])
@@ -373,7 +456,7 @@ class OSA:
             else:
                 if local_file_name[-5:] != ".tikz":
                     local_file_name += ".tikz"
-                tikzplotlib.clean_figure(target_resolution=300)
+                tikzplotlib.clean_figure(target_resolution=600)
                 tikzplotlib.save(local_file_name)
         plt.clf()
 
