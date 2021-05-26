@@ -25,9 +25,10 @@ class Reference_Method(Enum):
     USE_DISTANCE = 2
 
 class autocorrelator:
-    def __init__(self, file_wide = "", file_close = "", central_wavelength = 2000, files = [], peak_distance = -1, use_FFT_for_peak=True, plot_distance_data = False, path_difference = 1e-3, reference = Reference_Method.USE_RIPPLES, print_peak_data = False):
+    def __init__(self, file_wide = "", file_close = "", central_wavelength = 2000, files = [], peak_distance = -1, use_FFT_for_peak=True, plot_distance_data = False, path_difference = 1e-3, use_normalized_data = False, reference = Reference_Method.USE_RIPPLES, print_peak_data = False):
         self.time_correction_factor_wide = 0
         self.time_correction_factor_close = 0
+        self.use_normalized_data = use_normalized_data
         #I assume we are just using wavelengths between 1e-9 and 100e-6
         if central_wavelength > 100e-6:
             #Central wavelength is given in nm
@@ -186,7 +187,8 @@ class autocorrelator:
     def sech_function_compact(self, x, data):
         #return data[3] + data[0] * 1. / np.cosh((x - data[2]) / (data[1]))
         y_val = (x - data[2]) / data[1]
-        return data[3] + data[0] * 3 / (np.power(np.sinh(y_val), 2)) * (y_val * np.cosh(y_val) / np.sinh(y_val) - 1) 
+        #print(y_val, np.sinh(y_val), np.sinh(y_val) == 0)
+        return data[3] + data[0] * 3 / (np.power((np.sinh(y_val) + 1e-13), 2)) * (y_val * np.cosh(y_val) / (np.sinh(y_val) + 1e-13) - 1) 
 
     def gaussian_function(self, x, A, xc, w, y0):
         return self.gaussian_function_compact(x, [A, xc, w, y0])
@@ -204,6 +206,10 @@ class autocorrelator:
                     line_data = line.split(',')
                     time_data.append(float(line_data[0]))
                     meas_data.append(float(line_data[1]))
+        if self.use_normalized_data:
+            meas_data = np.asarray(meas_data)
+            meas_data -= np.min(meas_data)
+            meas_data /= np.max(meas_data)
         return np.asarray(time_data), np.asarray(meas_data)
 
     def butter_filter_autocorrelation_data(self, data, filter_frequency = 1000):
@@ -260,9 +266,12 @@ class autocorrelator:
 
     def apply_sech_fit(self, estimated_pulse_duration = 1):
         popt, pcopt = curve_fit(self.sech_function, 1e12 * self.time_data, self.meas_data, p0 = [np.max(self.meas_data), estimated_pulse_duration, 0, self.meas_data[0]])
+        #plt.plot(1e12 * self.time_data, self.meas_data, 1e12 * self.time_data, self.sech_function_compact(1e12 * self.time_data, popt))
+        #plt.show()
         self.sech_pulse_fwhm = (popt[1]) * 2.7196 * 0.6482
         self.sech_fwhm = (popt[1]) * 2.7196
-        self.sech_data = popt 
+        self.sech_data = popt
+        #print(self.sech_data, np.max(self.meas_data), self.meas_data[0]) 
 
     def plot_figure(self, legend_location = 'upper center', file_title = "", x_min = 1, x_max = -1, use_significant_digits = 3):
         #plt.title("Autocorrelation for I = " + str(power_elem / 10) + " A")
@@ -339,7 +348,7 @@ class autocorrelator:
         if file_format == "PNG":
             if local_file_name[-4:] != ".png":
                 local_file_name += ".png"
-            plt.savefig(local_file_name, bbox_inches="tight", dpi=600, metadata={'Source': [self.file_wide], 'Title': plot_file_name, 'Author': "Roland Richter"})
+            plt.savefig(local_file_name, bbox_inches="tight", dpi=600, metadata={'Source': [self.file_wide], 'Title': local_file_name, 'Author': "Roland Richter"})
         else:
             if file_format == "PGF":
                 if local_file_name[-4:] != ".pgf":
@@ -348,7 +357,7 @@ class autocorrelator:
             else:
                 if local_file_name[-5:] != ".tikz":
                     local_file_name += ".tikz"
-                tikzplotlib.clean_figure(target_resolution=300)
+                tikzplotlib.clean_figure(target_resolution=600)
                 tikzplotlib.save(local_file_name)
         """
         plot_file_name = file_name
