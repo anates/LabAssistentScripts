@@ -57,7 +57,8 @@ class AutoCorrelator:
             plot_distance_data (bool, optional): _description_. Defaults to False.
             path_difference (float, optional): _description_. Defaults to 1e-3.
             use_normalized_data (bool, optional): _description_. Defaults to False.
-            reference (ReferenceMethod, optional): _description_. Defaults to ReferenceMethod.USE_RIPPLES.
+            reference (ReferenceMethod, optional): _description_.
+            Defaults to ReferenceMethod.USE_RIPPLES.
             print_peak_data (bool, optional): _description_. Defaults to False.
         """
         # pylint:disable=too-many-arguments, too-many-branches, dangerous-default-value
@@ -173,7 +174,7 @@ class AutoCorrelator:
 
         if time_scale_1 < 0 or time_scale_2 < 0:
             raise Exception(
-                "Error reading files, please proceed with separate files. No time scale could be found."
+                "Error reading files, please proceed with separate files. No time scale was found."
             )
         if time_scale_1 > time_scale_2:
             self.file_wide = file_1
@@ -339,6 +340,7 @@ class AutoCorrelator:
         Returns:
             np.ndarray: _description_
         """
+        # pylint:disable=invalid-name
         normal_cutoff = cutoff / (sampling_frequency * 0.5)
         b, a = butter(order, normal_cutoff, btype="low", analog=False)
         return filtfilt(b, a, data)
@@ -355,13 +357,14 @@ class AutoCorrelator:
         Returns:
             float: _description_
         """
+        # pylint:disable=invalid-name
         return data[3] + data[0] * np.sqrt(2 / np.pi) / data[1] * np.exp(
             -4 * np.log(2) * ((x - data[2]) / data[1]) ** 2
         )
 
-        # return data[3] + data[0] * np.exp(-0.5 * np.power((x - data[2]) / data[1], 2))
-
-    def sech_function_compact(self, x, data) -> float:
+    def sech_function_compact(
+        self, x: Union[np.ndarray, float], data: list[float]
+    ) -> Union[np.ndarray, float]:
         """sech_function_compact _summary_
 
         Args:
@@ -371,12 +374,15 @@ class AutoCorrelator:
         Returns:
             float: _description_
         """
+        # pylint:disable=invalid-name
         y_val = (x - data[2]) / data[1]
         return data[3] + data[0] * 3 / (np.power((np.sinh(y_val) + 1e-13), 2)) * (
             y_val * np.cosh(y_val) / (np.sinh(y_val) + 1e-13) - 1
         )
 
-    def gaussian_function(self, x, A, xc, w, y0) -> float:
+    def gaussian_function(
+        self, x: Union[np.ndarray, float], A: float, xc: float, w: float, y0: float
+    ) -> float:
         """gaussian_function _summary_
 
         Args:
@@ -389,9 +395,12 @@ class AutoCorrelator:
         Returns:
             float: _description_
         """
+        # pylint:disable=invalid-name
         return self.gaussian_function_compact(x, [A, xc, w, y0])
 
-    def sech_function(self, x, A, xc, w, y0) -> float:
+    def sech_function(
+        self, x: Union[np.ndarray, float], A: float, xc: float, w: float, y0: float
+    ) -> Union[np.ndarray, float]:
         """sech_function _summary_
 
         Args:
@@ -404,6 +413,7 @@ class AutoCorrelator:
         Returns:
             float: _description_
         """
+        # pylint:disable=invalid-name
         return self.sech_function_compact(x, [A, xc, w, y0])
 
     def get_raw_autocorrelation_data(
@@ -420,8 +430,8 @@ class AutoCorrelator:
         """
         time_data = []
         meas_data = []
-        with open(filename, "r", encoding="utf-8") as f:
-            lines = f.readlines()
+        with open(filename, "r", encoding="utf-8") as file_reader:
+            lines = file_reader.readlines()
             for line_number, line in enumerate(lines):
                 if line_number > skip_lines and len(line.split(",")) == 3:
                     line_data = line.split(",")
