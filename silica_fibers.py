@@ -62,6 +62,14 @@ class UHNA4:
         self.cladding_diameter = 125e-6
         self.coating_diameter = 250e-6
 
+class UHNA3:
+    def __init__(self):
+        self.dispersion_data_file = "Dispersion_UHNA3.csv"
+        self.name = "UHNA-3"
+        self.core_diameter = 1.8e-6
+        self.cladding_diameter = 125e-6
+        self.coating_diameter = 250e-6
+
 
 class fiber:
     def __init__(self, fiber_dispersion_data, core_size, cladding_sizes, coating_size, name):
