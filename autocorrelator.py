@@ -1,4 +1,10 @@
 #!/usr/bin/env python3
+#
+# Created on May 25 2022
+#
+# Created by Roland Axel Richter -- roland.richter@empa.ch
+#
+# Copyright (c) 2022
 """ _summary_
 
 Returns:
