@@ -1,0 +1,23 @@
+[tool.poetry]
+name = "lab-data-helper"
+version = "0.1.0"
+description = "Contains multiple classes intended to help analysing data from the laboratory, from autocorrelations to spectra acquired using different spectrometer"
+authors = ["Roland Richter <roland.richter@empa.ch>"]
+readme = "README.md"
+packages = [{include = "lab_data_helper"}]
+
+[tool.poetry.dependencies]
+python = "^3.9"
+numpy = "^1.24.1"
+scipy = "^1.9.3"
+tikzplotlib = "^0.10.1"
+matplotlib = "^3.6.2"
+matplotlib-label-lines = "^0.5.1"
+
+[tool.poetry.group.dev.dependencies]
+pylint = "^2.15.9"
+black = "^22.12.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
