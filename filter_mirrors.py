@@ -65,7 +65,7 @@ class FilterMirror:
         self.create_mirror()
 
     @classmethod
-    def from_mirror_class(cls, mirror_template) -> FilterMirror:
+    def from_mirror_class(cls, mirror_template):
         """fromMirrorClass _summary_
 
         Args:
