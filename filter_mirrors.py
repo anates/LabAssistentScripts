@@ -5,6 +5,11 @@
 # Created by Roland Axel Richter -- roland.richter@empa.ch
 #
 # Copyright (c) 2022
+"""_summary_
+
+Returns:
+    _type_: _description_
+"""
 from typing import Union
 import numpy as np
 from scipy.interpolate import interp1d
