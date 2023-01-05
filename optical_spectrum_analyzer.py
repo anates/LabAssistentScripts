@@ -13,14 +13,13 @@ Returns:
 from typing import Any
 from itertools import islice
 import numpy as np
-from scipy.signal import butter, filtfilt#, find_peaks
+from scipy.signal import butter, filtfilt  # , find_peaks
 import scipy.constants as scco
 from scipy.optimize import curve_fit
 from matplotlib import pyplot as plt
 
 import tikzplotlib
 from labellines import labelLines
-
 
 
 from filter_mirrors import FilterMirror
@@ -373,7 +372,9 @@ class OSA:
 
         normalized_log_meas_data = log_meas_data.copy()
         normalized_log_meas_data -= np.min(normalized_log_meas_data)
-        normalized_log_meas_data = normalized_log_meas_data / np.max(normalized_log_meas_data)
+        normalized_log_meas_data = normalized_log_meas_data / np.max(
+            normalized_log_meas_data
+        )
 
         if data_threshold > 0:
             linear_threshold_data_indices = linear_meas_data > data_threshold
@@ -522,9 +523,11 @@ class OSA:
             filter_mirror (FilterMirror): _description_
         """
         if "remove_mirror" not in dir(filter_mirror):
-            raise Exception("remove_mirror() does not exist in the imported package\
+            raise Exception(
+                "remove_mirror() does not exist in the imported package\
                     for filter_mirror. Please update the corresponding script before\
-                        calling remove_filter_mirror()")
+                        calling remove_filter_mirror()"
+            )
         if spectrum_number < 0 or spectrum_number > (len(self.spectra) - 1):
             for i in range(len(self.spectra)):
                 local_lin_meas_data = self.spectra[[*self.spectra][i]].linear_meas_data
@@ -935,7 +938,9 @@ class OSA:
                         # I assume that the spectra are put into the dictionary in order
                         log_shift_factor = np.max(
                             list(self.spectra.items())[entry - 1][1].log_meas_data
-                        ) - np.min(list(self.spectra.items())[entry - 1][1].log_meas_data)
+                        ) - np.min(
+                            list(self.spectra.items())[entry - 1][1].log_meas_data
+                        )
                         # cut_off_lin_shift_factor = np.max(
                         #     list(self.spectra.items())[entry - 1][
                         #         1
@@ -1035,7 +1040,9 @@ class OSA:
                     [*self.spectra][spectrum_number]
                 ]  # nth_key(self.spectra, spectrum_number)
                 if use_linear_scale:
-                    fig_ax.plot(local_value.wl_data, local_value.cut_off_linear_meas_data)
+                    fig_ax.plot(
+                        local_value.wl_data, local_value.cut_off_linear_meas_data
+                    )
                 else:
                     fig_ax.plot(local_value.wl_data, local_value.log_meas_data)
                 legend_entries.append(local_value.spectrum_name)
@@ -1076,7 +1083,7 @@ class OSA:
                     ax_top.set_xlabel("Wavenumbers [cm^-1]")
                 ax_top.set_xticks(fig_ax.get_xticks())
                 cur_xbounds = fig_ax.get_xbound()
-                ax_top.set_xbound(lower = cur_xbounds[0], upper=cur_xbounds[1])
+                ax_top.set_xbound(lower=cur_xbounds[0], upper=cur_xbounds[1])
                 ax_top.set_xticklabels([int(10e6 / (x)) for x in fig_ax.get_xticks()])
                 # ax_top.set_xticklabels([int(x) for x in ax.get_xticks()])
                 # ax_top.xaxis.set_major_locator(plt.MaxNLocator())
@@ -1119,7 +1126,7 @@ class OSA:
             maximum_wavelength (float, optional): _description_. Defaults to np.inf.
             fit_function (str, optional): _description_. Defaults to "Gaussian".
         """
-        #pylint:disable=unbalanced-tuple-unpacking
+        # pylint:disable=unbalanced-tuple-unpacking
         # find peak
         # central_wavelength = estimated_wavelength
         if external_spectrum_number < 0:
