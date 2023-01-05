@@ -10,6 +10,7 @@
 Returns:
     _type_: _description_
 """
+from __future__ import annotations
 from typing import Union
 import numpy as np
 from scipy.interpolate import interp1d
@@ -70,7 +71,7 @@ class FilterMirror:
         self.create_mirror()
 
     @classmethod
-    def from_mirror_class(cls, mirror_template):
+    def from_mirror_class(cls, mirror_template) -> FilterMirror:
         """fromMirrorClass _summary_
 
         Args:
