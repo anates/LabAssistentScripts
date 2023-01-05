@@ -10,27 +10,38 @@
 Returns:
     _type_: _description_
 """
-from typing import Any, Optional
+from typing import Any
+from itertools import islice
 import numpy as np
-from scipy.signal import butter, filtfilt, find_peaks
+from scipy.signal import butter, filtfilt#, find_peaks
 import scipy.constants as scco
-from matplotlib import pyplot as plt
 from scipy.optimize import curve_fit
+from matplotlib import pyplot as plt
+
 import tikzplotlib
 from labellines import labelLines
 
-from itertools import islice
+
 
 from filter_mirrors import FilterMirror
 
 
 def nth_key(dct, n) -> Any:
+    """_summary_
+
+    Args:
+        dct (_type_): _description_
+        n (_type_): _description_
+
+    Returns:
+        Any: _description_
+    """
     it = iter(dct)
     next(islice(it, n, n), None)
     return next(it)
 
 
-class OSA_spectrum:
+class OsaSpectrum:
     """_summary_"""
 
     def __init__(
@@ -54,11 +65,14 @@ class OSA_spectrum:
             linear_meas_data (np.ndarray): _description_
             log_meas_data (np.ndarray): _description_
             spectrum_name (str): _description_
-            linear_data_below_threshold (np.ndarray, optional): _description_. Defaults to np.zeros(0).
+            linear_data_below_threshold (np.ndarray, optional): _description_.\
+            Defaults to np.zeros(0).
             normalized_data (np.ndarray, optional): _description_. Defaults to np.zeros(0).
-            normalized_data_below_threshold (np.ndarray, optional): _description_. Defaults to np.zeros(0).
+            normalized_data_below_threshold (np.ndarray, optional): _description_.\
+            Defaults to np.zeros(0).
             normalized_log_data (np.ndarray, optional): _description_. Defaults to np.zeros(0).
-            normalized_log_data_below_threshold (np.ndarray, optional): _description_. Defaults to np.zeros(0).
+            normalized_log_data_below_threshold (np.ndarray, optional): _description_.\
+            Defaults to np.zeros(0).
             threshold_data (float, optional): _description_. Defaults to -1.
             stack_spectrum (bool, optional): _description_. Defaults to False.
         """
@@ -79,7 +93,7 @@ class OSA_spectrum:
         self.fit_function = "None"
         self.fit_meas_data = np.zeros(0)
         self.fit_data = np.zeros(0)
-        self.FWHM = 0.0
+        self.fwhm = 0.0
         self.bandwidth = 0.0
         self.fit_can_be_used = False
 
@@ -198,14 +212,14 @@ class OSA:
 
     def calc_single_spectrum_energy(
         self,
-        spectrum: OSA_spectrum,
+        spectrum: OsaSpectrum,
         minimum_wavelength: float,
         maximum_wavelength: float,
     ) -> float:
         """calc_single_spectrum_energy _summary_
 
         Args:
-            spectrum (OSA_spectrum): _description_
+            spectrum (OsaSpectrum): _description_
             minimum_wavelength (float): _description_
             maximum_wavelength (float): _description_
 
@@ -248,13 +262,13 @@ class OSA:
             maximum_index = cur_index
         cur_energy = 0
         full_energy = 0
-        """
-        for j, elem in enumerate(local_lin_meas_data):
-            cur_energy = elem
-            if j == 0 or j == len(local_lin_meas_data) - 1:
-                cur_energy *= 0.5
-            full_energy += cur_energy
-            """
+
+        # for j, elem in enumerate(local_lin_meas_data):
+        #     cur_energy = elem
+        #     if j == 0 or j == len(local_lin_meas_data) - 1:
+        #         cur_energy *= 0.5
+        #     full_energy += cur_energy
+
         for j in range(minimum_index, maximum_index + 1):
             cur_energy = local_lin_meas_data[j]
             if j == minimum_index or j == maximum_index:
@@ -338,7 +352,8 @@ class OSA:
                         if len(line_data) != 2:
                             line_data = line.split("\t")
                         wl_data.append(float(line_data[0]))
-                        # adjust to something useful. I assume that 1 in the small OSA is equivalent to 1e-6 in the large OSA
+                        # adjust to something useful. I assume that 1 in the small OSA\
+                        # is equivalent to 1e-6 in the large OSA
                         meas_data.append(float(line_data[1]) * 1e-6)
                         if meas_data[-1] == 0:
                             meas_data[-1] = 1e-13
@@ -358,15 +373,17 @@ class OSA:
 
         normalized_log_meas_data = log_meas_data.copy()
         normalized_log_meas_data -= np.min(normalized_log_meas_data)
-        normalized_log_meas_data /= np.max(normalized_log_meas_data)
+        normalized_log_meas_data = normalized_log_meas_data / np.max(normalized_log_meas_data)
 
         if data_threshold > 0:
             linear_threshold_data_indices = linear_meas_data > data_threshold
             linear_threshold_data = linear_meas_data.copy()
             linear_threshold_data[linear_threshold_data_indices] = data_threshold
+        else:
+            linear_threshold_data = np.zeros_like(linear_meas_data)
         wl_data = np.asarray(wl_data)
         if data_threshold > 0:
-            self.spectra[spectrum_name] = OSA_spectrum(
+            self.spectra[spectrum_name] = OsaSpectrum(
                 wl_data,
                 linear_meas_data,
                 log_meas_data,
@@ -377,7 +394,7 @@ class OSA:
                 threshold_data=data_threshold,
             )
         else:
-            self.spectra[spectrum_name] = OSA_spectrum(
+            self.spectra[spectrum_name] = OsaSpectrum(
                 wl_data,
                 linear_meas_data,
                 log_meas_data,
@@ -432,14 +449,15 @@ class OSA:
                 self.spectra[[*self.spectra][i]].linear_meas_data = np.asarray(
                     interpolated_data[1][:]
                 )
-                interpolated_threshold_indices = (
-                    np.asarray(interpolated_data[1][:])
-                    > self.spectra[[*self.spectra][i]].threshold_data
-                )
+                # interpolated_threshold_indices = (
+                #     np.asarray(interpolated_data[1][:])
+                #     > self.spectra[[*self.spectra][i]].threshold_data
+                # )
                 self.spectra[[*self.spectra][i]].cut_off_linear_meas_data = np.asarray(
                     interpolated_data[1][:]
                 )
-                # self.spectra[[*self.spectra][i]].cut_off_linear_meas_data[interpolated_threshold_indices] = self.spectra[[*self.spectra][i]].threshold_data
+                # self.spectra[[*self.spectra][i]].cut_off_linear_meas_data[interpolated_threshold_indices] =\
+                # self.spectra[[*self.spectra][i]].threshold_data
                 self.spectra[[*self.spectra][i]].log_meas_data = 10 * np.log10(
                     interpolated_data[1][:] / 1e-3
                 )
@@ -503,6 +521,10 @@ class OSA:
             spectrum_number (int): _description_
             filter_mirror (FilterMirror): _description_
         """
+        if "remove_mirror" not in dir(filter_mirror):
+            raise Exception("remove_mirror() does not exist in the imported package\
+                    for filter_mirror. Please update the corresponding script before\
+                        calling remove_filter_mirror()")
         if spectrum_number < 0 or spectrum_number > (len(self.spectra) - 1):
             for i in range(len(self.spectra)):
                 local_lin_meas_data = self.spectra[[*self.spectra][i]].linear_meas_data
@@ -513,14 +535,15 @@ class OSA:
                 self.spectra[[*self.spectra][i]].linear_meas_data = np.asarray(
                     interpolated_data[1][:]
                 )
-                interpolated_threshold_indices = (
-                    np.asarray(interpolated_data[1][:])
-                    > self.spectra[[*self.spectra][i]].threshold_data
-                )
+                # interpolated_threshold_indices = (
+                #     np.asarray(interpolated_data[1][:])
+                #     > self.spectra[[*self.spectra][i]].threshold_data
+                # )
                 self.spectra[[*self.spectra][i]].cut_off_linear_meas_data = np.asarray(
                     interpolated_data[1][:]
                 )
-                # self.spectra[[*self.spectra][i]].cut_off_linear_meas_data[interpolated_threshold_indices] = self.spectra[[*self.spectra][i]].threshold_data
+                # self.spectra[[*self.spectra][i]].cut_off_linear_meas_data[interpolated_threshold_indices] =\
+                # self.spectra[[*self.spectra][i]].threshold_data
                 self.spectra[[*self.spectra][i]].log_meas_data = 10 * np.log10(
                     interpolated_data[1][:] / 1e-3
                 )
@@ -583,7 +606,7 @@ class OSA:
         use_linear_scale: bool = False,
         use_normalized_data: bool = False,
         add_wavenumbers_on_top: bool = False,
-        with_fit_FWHM: bool = False,
+        with_fit_fwhm: bool = False,
         x_min: float = -1,
         x_max: float = -1,
         y_min: float = -1,
@@ -593,19 +616,38 @@ class OSA:
         put_legend_in_lines: bool = False,
         legend_in_line_xvals: list = [],
     ):
+        """_summary_
 
-        fig = plt.figure()
+        Args:
+            spectrum_number (int): _description_
+            use_stacked_spectra (bool, optional): _description_. Defaults to False.
+            use_cube_spectra (bool, optional): _description_. Defaults to False.
+            use_linear_scale (bool, optional): _description_. Defaults to False.
+            use_normalized_data (bool, optional): _description_. Defaults to False.
+            add_wavenumbers_on_top (bool, optional): _description_. Defaults to False.
+            with_fit_fwhm (bool, optional): _description_. Defaults to False.
+            x_min (float, optional): _description_. Defaults to -1.
+            x_max (float, optional): _description_. Defaults to -1.
+            y_min (float, optional): _description_. Defaults to -1.
+            y_max (float, optional): _description_. Defaults to -1.
+            use_grid (bool, optional): _description_. Defaults to False.
+            number_precision (int, optional): _description_. Defaults to 3.
+            put_legend_in_lines (bool, optional): _description_. Defaults to False.
+            legend_in_line_xvals (list, optional): _description_. Defaults to [].
+        """
+        # pylint:disable=dangerous-default-value
+        # fig = plt.figure()
         if use_cube_spectra:
-            ax = plt.subplot(1, 1, 1, projection="3d")
+            fig_ax = plt.subplot(1, 1, 1, projection="3d")
             spectrum_keys = self.spectra.keys()
             for entry, key in enumerate(spectrum_keys):
                 value = self.spectra[key]
-                ax.plot(
+                fig_ax.plot(
                     value.wl_data,
                     np.ones(value.wl_data.size) * entry * 0.1,
                     value.normalized_data,
                 )
-                ax.add_collection3d(
+                fig_ax.add_collection3d(
                     plt.fill_between(
                         value.wl_data,
                         0.95 * value.normalized_data,
@@ -616,7 +658,7 @@ class OSA:
                     zdir="y",
                 )
         else:
-            ax = plt.subplot(111)
+            fig_ax = plt.subplot(111)
             plt.xlabel("Wavelength [nm]")
             if y_max <= y_min:
                 adjust_height_freely = True
@@ -632,12 +674,12 @@ class OSA:
                     plt.ylabel("Intensity in [mW/nm], normalized")
                 else:
                     plt.ylabel("Intensity in [dBm/nm], normalized")
-            legend_entries = []
+            # legend_entries = []
             plt.grid(use_grid)
             if (
                 spectrum_number < 0 or spectrum_number > len(self.spectra) - 1
             ):  # plot all
-                spectrum_entries = self.spectra.items()
+                # spectrum_entries = self.spectra.items()
                 spectrum_keys = self.spectra.keys()
                 for entry, key in enumerate(spectrum_keys):
                     value = self.spectra[key]
@@ -646,24 +688,20 @@ class OSA:
                     log_data_entry = []
                     normalized_linear_data_entry = []
                     normalized_log_data_entry = []
-                    if with_fit_FWHM and value.fit_can_be_used:
-                        legend_entry += (
-                            ", FWHM = "
-                            + "{0:.{prec}f}".format(value.FWHM, prec=number_precision)
-                            + " nm, "
-                            + "{0:.{prec}f}".format(
-                                value.bandwidth / 1e9, prec=number_precision
-                            )
-                            + " GHz"
-                        )
+                    if with_fit_fwhm and value.fit_can_be_used:
+                        legend_entry += ", FWHM = "
+                        legend_entry += f"{value.fwhm:.{number_precision}f}"
+                        legend_entry += " nm, "
+                        legend_entry += f"{value.bandwidth / 1e9:.{number_precision}f}"
+                        legend_entry += " GHz"
                     if use_stacked_spectra and entry > 0:
                         # I assume that the spectra are put into the dictionary in order
                         log_shift_factor = np.max(value.log_meas_data) - np.min(
                             value.log_meas_data
                         )
-                        cut_off_lin_shift_factor = np.max(
-                            value.cut_off_linear_meas_data
-                        )
+                        # cut_off_lin_shift_factor = np.max(
+                        #     value.cut_off_linear_meas_data
+                        # )
                         lin_shift_factor = np.max(value.linear_meas_data)
                         normalized_lin_shift_factor = np.max(value.normalized_data)
                         normalized_log_shift_factor = np.max(value.normalized_log_data)
@@ -677,7 +715,7 @@ class OSA:
                         )
                     else:
                         log_shift_factor = 0
-                        cut_off_lin_shift_factor = 0
+                        # cut_off_lin_shift_factor = 0
                         lin_shift_factor = 0
                         normalized_lin_shift_factor = 0
                         normalized_log_shift_factor = 0
@@ -767,11 +805,12 @@ class OSA:
             plt.xlim((x_min, x_max))
             plt.ylim((y_min, y_max))
             if add_wavenumbers_on_top:
-                ax_top = ax.twiny()
+                ax_top = fig_ax.twiny()
                 ax_top.set_xlabel("Wavenumbers [cm^-1]")
-                ax_top.set_xticks(ax.get_xticks())
-                ax_top.set_xbound(ax.get_xbound())
-                ax_top.set_xticklabels([(int)(10e6 / x) for x in ax.get_xticks()])
+                ax_top.set_xticks(fig_ax.get_xticks())
+                cur_xbounds = fig_ax.get_xbound()
+                ax_top.set_xbound(lower=cur_xbounds[0], upper=cur_xbounds[1])
+                ax_top.set_xticklabels([(int)(10e6 / x) for x in fig_ax.get_xticks()])
             if use_stacked_spectra:
                 plt.yticks([])
         plt.show()
@@ -792,7 +831,7 @@ class OSA:
         y_min: float = -1,
         y_max: float = -1,
         use_grid: bool = False,
-        with_fit_FWHM: bool = False,
+        with_fit_fwhm: bool = False,
         plot_title: str = "",
         number_precision: int = 3,
         put_legend_in_lines: bool = False,
@@ -816,26 +855,26 @@ class OSA:
             y_min (float, optional): _description_. Defaults to -1.
             y_max (float, optional): _description_. Defaults to -1.
             use_grid (bool, optional): _description_. Defaults to False.
-            with_fit_FWHM (bool, optional): _description_. Defaults to False.
+            with_fit_fwhm (bool, optional): _description_. Defaults to False.
             plot_title (str, optional): _description_. Defaults to "".
             number_precision (int, optional): _description_. Defaults to 3.
             put_legend_in_lines (bool, optional): _description_. Defaults to False.
             legend_in_line_xvals (list, optional): _description_. Defaults to [].
             reduce_to_every_nth_entry (int, optional): _description_. Defaults to 1.
         """
-
-        fig = plt.figure()
+        # pylint:disable=dangerous-default-value
+        # fig = plt.figure()
         if use_cube_spectra:
-            ax = plt.subplot(1, 1, 1, projection="3d")
+            fig_ax = plt.subplot(1, 1, 1, projection="3d")
             spectrum_keys = self.spectra.keys()
             for entry, key in enumerate(spectrum_keys):
                 value = self.spectra[key]
-                ax.plot(
+                fig_ax.plot(
                     value.wl_data,
                     np.ones(value.wl_data.size) * entry * 0.1,
                     value.normalized_data,
                 )
-                ax.add_collection3d(
+                fig_ax.add_collection3d(
                     plt.fill_between(
                         value.wl_data,
                         0.95 * value.normalized_data,
@@ -846,7 +885,7 @@ class OSA:
                     zdir="y",
                 )
         else:
-            ax = plt.subplot(111)
+            fig_ax = plt.subplot(111)
             if y_max <= y_min:
                 adjust_height_freely = True
             else:
@@ -863,11 +902,11 @@ class OSA:
                 else:
                     plt.ylabel("Intensity in [dBm/nm], normalized")
             legend_entries = []
-            ax.grid(use_grid)
+            fig_ax.grid(use_grid)
             if (
                 spectrum_number < 0 or spectrum_number > len(self.spectra) - 1
             ):  # plot all
-                spectrum_entries = self.spectra.items()
+                # spectrum_entries = self.spectra.items()
                 spectrum_keys = self.spectra.keys()
                 for entry, key in enumerate(spectrum_keys):
                     value = self.spectra[key]
@@ -876,27 +915,32 @@ class OSA:
                     normalized_linear_data_entry = []
                     normalized_log_data_entry = []
                     legend_entry = value.spectrum_name
-                    if with_fit_FWHM and value.fit_can_be_used:
-                        legend_entry += (
-                            ", FWHM = "
-                            + "{0:.{prec}f}".format(value.FWHM, prec=number_precision)
-                            + " nm, "
-                            + "{0:.{prec}f}".format(
-                                value.bandwidth / 1e9, prec=number_precision
-                            )
-                            + " GHz"
-                        )
+                    if with_fit_fwhm and value.fit_can_be_used:
+                        legend_entry += ", FWHM = "
+                        legend_entry += f"{value.fwhm:.{number_precision}f}"
+                        legend_entry += " nm, "
+                        legend_entry += f"{value.bandwidth / 1e9:.{number_precision}f}"
+                        legend_entry += " GHz"
+                        # legend_entry += (
+                        #     ", FWHM = "
+                        #     + "{0:.{prec}f}".format(value.FWHM, prec=number_precision)
+                        #     + " nm, "
+                        #     + "{0:.{prec}f}".format(
+                        #         value.bandwidth / 1e9, prec=number_precision
+                        #     )
+                        #     + " GHz"
+                        # )
                     legend_entries.append(legend_entry)
                     if use_stacked_spectra and entry > 0:
                         # I assume that the spectra are put into the dictionary in order
                         log_shift_factor = np.max(
                             list(self.spectra.items())[entry - 1][1].log_meas_data
-                        ) - np.min(log_meas_data)
-                        cut_off_lin_shift_factor = np.max(
-                            list(self.spectra.items())[entry - 1][
-                                1
-                            ].cut_off_linear_meas_data
-                        )
+                        ) - np.min(list(self.spectra.items())[entry - 1][1].log_meas_data)
+                        # cut_off_lin_shift_factor = np.max(
+                        #     list(self.spectra.items())[entry - 1][
+                        #         1
+                        #     ].cut_off_linear_meas_data
+                        # )
                         lin_shift_factor = np.max(
                             list(self.spectra.items())[entry - 1][1].linear_meas_data
                         )
@@ -916,7 +960,7 @@ class OSA:
                         )
                     else:
                         log_shift_factor = 0
-                        cut_off_lin_shift_factor = 0
+                        # cut_off_lin_shift_factor = 0
                         lin_shift_factor = 0
                         normalized_lin_shift_factor = 0
                         normalized_log_shift_factor = 0
@@ -991,9 +1035,9 @@ class OSA:
                     [*self.spectra][spectrum_number]
                 ]  # nth_key(self.spectra, spectrum_number)
                 if use_linear_scale:
-                    ax.plot(local_value.wl_data, local_value.cut_off_linear_meas_data)
+                    fig_ax.plot(local_value.wl_data, local_value.cut_off_linear_meas_data)
                 else:
-                    ax.plot(local_value.wl_data, local_value.log_meas_data)
+                    fig_ax.plot(local_value.wl_data, local_value.log_meas_data)
                 legend_entries.append(local_value.spectrum_name)
             if put_legend_in_lines:
                 if not legend_in_line_xvals:
@@ -1015,24 +1059,25 @@ class OSA:
                         anchor_pos = (1.04, 0.5)
                     if "upper left" in legend_position:
                         anchor_pos = (1.04, 1)
-                    ax.legend(
+                    fig_ax.legend(
                         legend_entries,
                         bbox_to_anchor=anchor_pos,
                         loc=outside_legend_position,
                     )
                 else:
-                    ax.legend(legend_entries, loc=legend_position)
+                    fig_ax.legend(legend_entries, loc=legend_position)
             plt.xlim((x_min, x_max))
             plt.ylim((y_min, y_max))
             if add_wavenumbers_on_top:
-                ax_top = ax.twiny()
+                ax_top = fig_ax.twiny()
                 if file_format == "TIKZ":
                     ax_top.set_xlabel("Wavenumbers " + r"$\left\[cm^-1\right\]$")
                 else:
                     ax_top.set_xlabel("Wavenumbers [cm^-1]")
-                ax_top.set_xticks(ax.get_xticks())
-                ax_top.set_xbound(ax.get_xbound())
-                ax_top.set_xticklabels([int(10e6 / (x)) for x in ax.get_xticks()])
+                ax_top.set_xticks(fig_ax.get_xticks())
+                cur_xbounds = fig_ax.get_xbound()
+                ax_top.set_xbound(lower = cur_xbounds[0], upper=cur_xbounds[1])
+                ax_top.set_xticklabels([int(10e6 / (x)) for x in fig_ax.get_xticks()])
                 # ax_top.set_xticklabels([int(x) for x in ax.get_xticks()])
                 # ax_top.xaxis.set_major_locator(plt.MaxNLocator())
 
@@ -1074,23 +1119,24 @@ class OSA:
             maximum_wavelength (float, optional): _description_. Defaults to np.inf.
             fit_function (str, optional): _description_. Defaults to "Gaussian".
         """
+        #pylint:disable=unbalanced-tuple-unpacking
         # find peak
-        central_wavelength = estimated_wavelength
+        # central_wavelength = estimated_wavelength
         if external_spectrum_number < 0:
             for spectrum_number in range(len(self.spectra)):
                 spectrum = self.spectra[[*self.spectra][spectrum_number]]
-                peaks, _ = find_peaks(spectrum.linear_meas_data, prominence=(0.001, 1))
-                if len(spectrum.wl_data[peaks]) > 0:
-                    central_wavelength = float(spectrum.wl_data[peaks][0])
+                # peaks, _ = find_peaks(spectrum.linear_meas_data, prominence=(0.001, 1))
+                # if len(spectrum.wl_data[peaks]) > 0:
+                #     central_wavelength = float(spectrum.wl_data[peaks][0])
                 if fit_function == "Gaussian":
                     if (
                         minimum_wavelength > spectrum.wl_data[0]
                         or maximum_wavelength < spectrum.wl_data[-1]
                     ):
-                        center_wl_val = spectrum.wl_data.flat[
-                            np.abs(spectrum.wl_data - estimated_wavelength).argmin()
-                        ]
-                        center_wl_pos = spectrum.wl_data.tolist().index(center_wl_val)
+                        # center_wl_val = spectrum.wl_data.flat[
+                        #     np.abs(spectrum.wl_data - estimated_wavelength).argmin()
+                        # ]
+                        # center_wl_pos = spectrum.wl_data.tolist().index(center_wl_val)
                         if minimum_wavelength <= spectrum.wl_data[0]:
                             lower_wl_val = spectrum.wl_data[0]
                         else:
@@ -1144,7 +1190,7 @@ class OSA:
                     self.spectra[
                         [*self.spectra][spectrum_number]
                     ].fit_function = "Gaussian"
-                    self.spectra[[*self.spectra][spectrum_number]].FWHM = popt[1]
+                    self.spectra[[*self.spectra][spectrum_number]].fwhm = popt[1]
                     self.spectra[
                         [*self.spectra][spectrum_number]
                     ].bandwidth = scco.speed_of_light / (
@@ -1153,7 +1199,7 @@ class OSA:
                         (popt[2] + popt[1] / 2) * 1e-9
                     )
                 else:
-                    popt, pcopt = curve_fit(
+                    popt, _ = curve_fit(
                         self.sech_function,
                         spectrum.wl_data,
                         spectrum.linear_meas_data,
@@ -1165,7 +1211,7 @@ class OSA:
                         ],
                     )
                     self.spectra[[*self.spectra][spectrum_number]].fit_function = "Sech"
-                    self.spectra[[*self.spectra][spectrum_number]].FWHM = (
+                    self.spectra[[*self.spectra][spectrum_number]].fwhm = (
                         2 * np.log(2 + np.sqrt(3)) * popt[1]
                     )
                     self.spectra[
@@ -1173,13 +1219,13 @@ class OSA:
                     ].bandwidth = scco.speed_of_light / (
                         (
                             popt[2]
-                            - self.spectra[[*self.spectra][spectrum_number]].FWHM / 2
+                            - self.spectra[[*self.spectra][spectrum_number]].fwhm / 2
                         )
                         * 1e-9
                     ) - scco.speed_of_light / (
                         (
                             popt[2]
-                            + self.spectra[[*self.spectra][spectrum_number]].FWHM / 2
+                            + self.spectra[[*self.spectra][spectrum_number]].fwhm / 2
                         )
                         * 1e-9
                     )
@@ -1191,18 +1237,18 @@ class OSA:
         else:
             spectrum_number = external_spectrum_number
             spectrum = self.spectra[[*self.spectra][spectrum_number]]
-            peaks, _ = find_peaks(spectrum.linear_meas_data, prominence=(0.001, 1))
-            if len(spectrum.wl_data[peaks]) > 0:
-                central_wavelength = float(spectrum.wl_data[peaks][0])
+            # peaks, _ = find_peaks(spectrum.linear_meas_data, prominence=(0.001, 1))
+            # if len(spectrum.wl_data[peaks]) > 0:
+            #     central_wavelength = float(spectrum.wl_data[peaks][0])
             if fit_function == "Gaussian":
                 if (
                     minimum_wavelength > spectrum.wl_data[0]
                     or maximum_wavelength < spectrum.wl_data[-1]
                 ):
-                    center_wl_val = spectrum.wl_data.flat[
-                        np.abs(spectrum.wl_data - estimated_wavelength).argmin()
-                    ]
-                    center_wl_pos = spectrum.wl_data.tolist().index(center_wl_val)
+                    # center_wl_val = spectrum.wl_data.flat[
+                    #     np.abs(spectrum.wl_data - estimated_wavelength).argmin()
+                    # ]
+                    # center_wl_pos = spectrum.wl_data.tolist().index(center_wl_val)
                     if minimum_wavelength <= spectrum.wl_data[0]:
                         lower_wl_val = spectrum.wl_data[0]
                     else:
@@ -1229,7 +1275,7 @@ class OSA:
                     target_wl_scale = spectrum.wl_data[:]
                     target_val_scale = spectrum.linear_meas_data[:]
 
-                popt, pcopt = curve_fit(
+                popt, _ = curve_fit(
                     self.gaussian_function,
                     target_wl_scale,
                     target_val_scale,
@@ -1250,7 +1296,7 @@ class OSA:
                 plt.show()
 
                 self.spectra[[*self.spectra][spectrum_number]].fit_function = "Gaussian"
-                self.spectra[[*self.spectra][spectrum_number]].FWHM = popt[1]
+                self.spectra[[*self.spectra][spectrum_number]].fwhm = popt[1]
                 self.spectra[
                     [*self.spectra][spectrum_number]
                 ].bandwidth = scco.speed_of_light / (
@@ -1259,23 +1305,23 @@ class OSA:
                     (popt[2] + popt[1] / 2) * 1e-9
                 )
             else:
-                popt, pcopt = curve_fit(
+                popt, _ = curve_fit(
                     self.sech_function,
                     spectrum.wl_data,
                     spectrum.linear_meas_data,
                     p0=[np.max(spectrum.linear_meas_data), 1, estimated_wavelength, 0],
                 )
                 self.spectra[[*self.spectra][spectrum_number]].fit_function = "Sech"
-                self.spectra[[*self.spectra][spectrum_number]].FWHM = (
+                self.spectra[[*self.spectra][spectrum_number]].fwhm = (
                     2 * np.log(2 + np.sqrt(3)) * popt[1]
                 )
                 self.spectra[
                     [*self.spectra][spectrum_number]
                 ].bandwidth = scco.speed_of_light / (
-                    (popt[2] - self.spectra[[*self.spectra][spectrum_number]].FWHM / 2)
+                    (popt[2] - self.spectra[[*self.spectra][spectrum_number]].fwhm / 2)
                     * 1e-9
                 ) - scco.speed_of_light / (
-                    (popt[2] + self.spectra[[*self.spectra][spectrum_number]].FWHM / 2)
+                    (popt[2] + self.spectra[[*self.spectra][spectrum_number]].fwhm / 2)
                     * 1e-9
                 )
             self.spectra[
