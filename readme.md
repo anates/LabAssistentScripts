@@ -12,11 +12,7 @@
   </p>
 </p>
 
-![Issues](https://img.shields.io/github/issues/anates/LabAssistentScripts) 
-
-![Forks](https://img.shields.io/github/forks/anates/LabAssistentScripts?style=social) ![Stargazers](https://img.shields.io/github/stars/anates/LabAssistentScripts?style=social)
-
-![Contributors](https://img.shields.io/github/contributors/anates/LabAssistentScripts?color=dark-green) 
+![Issues](https://img.shields.io/github/issues/anates/LabAssistentScripts) ![Contributors](https://img.shields.io/github/contributors/anates/LabAssistentScripts?color=dark-green) 
 
 ## Table Of Contents
 
