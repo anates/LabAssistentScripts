@@ -45,33 +45,33 @@ class OsaSpectrum:
 
     def __init__(
         self,
-        wl_data: np.ndarray,
-        linear_meas_data: np.ndarray,
-        log_meas_data: np.ndarray,
+        wl_data: np.ndarray[Any, np.dtype[np.float64]],
+        linear_meas_data: np.ndarray[Any, np.dtype[np.float64]],
+        log_meas_data: np.ndarray[Any, np.dtype[np.float64]],
         spectrum_name: str,
-        linear_data_below_threshold: np.ndarray = np.zeros(0),
-        normalized_data: np.ndarray = np.zeros(0),
-        normalized_data_below_threshold: np.ndarray = np.zeros(0),
-        normalized_log_data: np.ndarray = np.zeros(0),
-        normalized_log_data_below_threshold: np.ndarray = np.zeros(0),
+        linear_data_below_threshold: np.ndarray = np.zeros(0, dtype=np.float64),
+        normalized_data: np.ndarray = np.zeros(0, dtype=np.float64),
+        normalized_data_below_threshold: np.ndarray = np.zeros(0, dtype=np.float64),
+        normalized_log_data: np.ndarray = np.zeros(0, dtype=np.float64),
+        normalized_log_data_below_threshold: np.ndarray = np.zeros(0, dtype=np.float64),
         threshold_data: float = -1,
         stack_spectrum: bool = False,
     ) -> None:
-        """__init__ _summary_
+        """_summary_
 
         Args:
-            wl_data (np.ndarray): _description_
-            linear_meas_data (np.ndarray): _description_
-            log_meas_data (np.ndarray): _description_
+            wl_data (np.ndarray[Any, np.dtype[np.float64]]): _description_
+            linear_meas_data (np.ndarray[Any, np.dtype[np.float64]]): _description_
+            log_meas_data (np.ndarray[Any, np.dtype[np.float64]]): _description_
             spectrum_name (str): _description_
             linear_data_below_threshold (np.ndarray, optional): _description_.\
-            Defaults to np.zeros(0).
+                Defaults to np.zeros(0).
             normalized_data (np.ndarray, optional): _description_. Defaults to np.zeros(0).
             normalized_data_below_threshold (np.ndarray, optional): _description_.\
-            Defaults to np.zeros(0).
+                Defaults to np.zeros(0).
             normalized_log_data (np.ndarray, optional): _description_. Defaults to np.zeros(0).
             normalized_log_data_below_threshold (np.ndarray, optional): _description_.\
-            Defaults to np.zeros(0).
+                Defaults to np.zeros(0).
             threshold_data (float, optional): _description_. Defaults to -1.
             stack_spectrum (bool, optional): _description_. Defaults to False.
         """
@@ -127,8 +127,10 @@ class OSA:
         return filtfilt(b, a, data)
 
     def gaussian_function_compact(
-        self, x_vec: Union[np.ndarray[float], float], data: list[float]
-    ) -> Union[np.ndarray[float], float]:
+        self,
+        x_vec: Union[np.ndarray[Any, np.dtype[np.float64]], float],
+        data: list[float],
+    ) -> Union[np.ndarray[Any, np.dtype[np.float64]], float]:
         """_summary_
 
         Args:
@@ -144,12 +146,12 @@ class OSA:
 
     def gaussian_function(
         self,
-        x_vec: Union[np.ndarray[float], float],
+        x_vec: Union[np.ndarray[Any, np.dtype[np.float64]], float],
         A: float,
         xc: float,
         w: float,
         y0: float,
-    ) -> Union[np.ndarray[float], float]:
+    ) -> Union[np.ndarray[Any, np.dtype[np.float64]], float]:
         """_summary_
 
         Args:
@@ -165,8 +167,10 @@ class OSA:
         return self.gaussian_function_compact(x_vec, [A, xc, w, y0])
 
     def sech_function_compact(
-        self, x_vec: Union[np.ndarray[float], float], data: list[float]
-    ) -> Union[np.ndarray[float], float]:
+        self,
+        x_vec: Union[np.ndarray[Any, np.dtype[np.float64]], float],
+        data: list[float],
+    ) -> Union[np.ndarray[Any, np.dtype[np.float64]], float]:
         """_summary_
 
         Args:
@@ -182,12 +186,12 @@ class OSA:
 
     def sech_function(
         self,
-        x_vec: Union[np.ndarray[float], float],
+        x_vec: Union[np.ndarray[Any, np.dtype[np.float64]], float],
         A: float,
         xc: float,
         w: float,
         y0: float,
-    ) -> Union[np.ndarray[float], float]:
+    ) -> Union[np.ndarray[Any, np.dtype[np.float64]], float]:
         """_summary_
 
         Args:
@@ -370,14 +374,14 @@ class OSA:
                         meas_data.append(float(line_data[1]) * 1e-6)
                         if meas_data[-1] == 0:
                             meas_data[-1] = 1e-13
-        meas_data = np.asarray(meas_data)
-        wl_data = np.asarray(wl_data)
+        meas_data = np.asarray(meas_data, dtype=np.float64)
+        wl_data = np.asarray(wl_data, dtype=np.float64)
         if meas_data[0] < 0:
             linear_meas_data = np.power(10, meas_data / 10) * 1e-3
             log_meas_data = meas_data
         else:
-            linear_meas_data = np.asarray(meas_data)
-            log_meas_data = 10 * np.log10(meas_data)
+            linear_meas_data = np.asarray(meas_data, dtype=np.float64)
+            log_meas_data = (10 * np.log10(meas_data)).astype(dtype=np.float64)
         # Applying scaling/etc
         linear_meas_data *= scaling_factor
         normalized_linear_meas_data = linear_meas_data.copy()
@@ -395,7 +399,7 @@ class OSA:
             linear_threshold_data = linear_meas_data.copy()
             linear_threshold_data[linear_threshold_data_indices] = data_threshold
         else:
-            linear_threshold_data = np.zeros_like(linear_meas_data)
+            linear_threshold_data = np.zeros_like(linear_meas_data, dtype=np.float64)
         wl_data = np.asarray(wl_data)
         if data_threshold > 0:
             self.spectra[spectrum_name] = OsaSpectrum(
@@ -471,11 +475,12 @@ class OSA:
                 self.spectra[[*self.spectra][i]].cut_off_linear_meas_data = np.asarray(
                     interpolated_data[1][:]
                 )
-                # self.spectra[[*self.spectra][i]].cut_off_linear_meas_data[interpolated_threshold_indices] =\
+                # self.spectra[[*self.spectra][i]].cut_off_linear_meas_data\
+                # [interpolated_threshold_indices] =\
                 # self.spectra[[*self.spectra][i]].threshold_data
                 self.spectra[[*self.spectra][i]].log_meas_data = 10 * np.log10(
                     interpolated_data[1][:] / 1e-3
-                )
+                ).astype(np.float64)
 
                 normalized_linear_meas_data = self.spectra[
                     [*self.spectra][i]
@@ -505,9 +510,9 @@ class OSA:
             self.spectra[
                 [*self.spectra][spectrum_number]
             ].linear_meas_data = np.asarray(interpolated_data[1][:])
-            self.spectra[
-                [*self.spectra][spectrum_number]
-            ].log_meas_data = 10 * np.log10(interpolated_data[1][:] / 1e-3)
+            self.spectra[[*self.spectra][spectrum_number]].log_meas_data = (
+                10 * np.log10(interpolated_data[1][:] / 1e-3)
+            ).astype(np.float64)
 
             normalized_linear_meas_data = self.spectra[
                 [*self.spectra][spectrum_number]
@@ -559,7 +564,8 @@ class OSA:
                 self.spectra[[*self.spectra][i]].cut_off_linear_meas_data = np.asarray(
                     interpolated_data[1][:]
                 )
-                # self.spectra[[*self.spectra][i]].cut_off_linear_meas_data[interpolated_threshold_indices] =\
+                # self.spectra[[*self.spectra][i]].cut_off_linear_meas_data\
+                # [interpolated_threshold_indices] =\
                 # self.spectra[[*self.spectra][i]].threshold_data
                 self.spectra[[*self.spectra][i]].log_meas_data = 10 * np.log10(
                     interpolated_data[1][:] / 1e-3
