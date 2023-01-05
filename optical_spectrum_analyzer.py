@@ -10,7 +10,7 @@
 Returns:
     _type_: _description_
 """
-from typing import Any
+from typing import Any, Union
 from itertools import islice
 import numpy as np
 from scipy.signal import butter, filtfilt  # , find_peaks
@@ -106,7 +106,7 @@ class OSA:
         Returns:
             _type_: _description_
         """
-        self.spectra = {}
+        self.spectra: dict[str, OsaSpectrum] = {}
 
     def butter_lowpass_filter(
         self, data: np.ndarray, cutoff: float, sampling_frequency: float, order: int
@@ -126,67 +126,81 @@ class OSA:
         b, a = butter(order, normal_cutoff, btype="low", analog=False)
         return filtfilt(b, a, data)
 
-    def gaussian_function_compact(self, x: float, data: list[float]) -> float:
-        """gaussian_function_compact _summary_
+    def gaussian_function_compact(
+        self, x_vec: Union[np.ndarray[float], float], data: list[float]
+    ) -> Union[np.ndarray[float], float]:
+        """_summary_
 
         Args:
-            x (float): _description_
+            x_vec (Union[np.ndarray[float], float]): _description_
             data (list[float]): _description_
 
         Returns:
-            float: _description_
+            Union[np.ndarray[float], float]: _description_
         """
         return data[3] + data[0] * np.sqrt(2 / np.pi) / data[1] * np.exp(
-            -4 * np.log(2) * ((x - data[2]) / data[1]) ** 2
+            -4 * np.log(2) * ((x_vec - data[2]) / data[1]) ** 2
         )
 
     def gaussian_function(
-        self, x: float, A: float, xc: float, w: float, y0: float
-    ) -> float:
-        """gaussian_function _summary_
+        self,
+        x_vec: Union[np.ndarray[float], float],
+        A: float,
+        xc: float,
+        w: float,
+        y0: float,
+    ) -> Union[np.ndarray[float], float]:
+        """_summary_
 
         Args:
-            x (float): _description_
+            x (Union[np.ndarray, float]): _description_
             A (float): _description_
             xc (float): _description_
             w (float): _description_
             y0 (float): _description_
 
         Returns:
-            float: _description_
+            Union[np.ndarray, float]: _description_
         """
-        return self.gaussian_function_compact(x, [A, xc, w, y0])
+        return self.gaussian_function_compact(x_vec, [A, xc, w, y0])
 
-    def sech_function_compact(self, x: float, data: list[float]) -> float:
-        """sech_function_compact _summary_
+    def sech_function_compact(
+        self, x_vec: Union[np.ndarray[float], float], data: list[float]
+    ) -> Union[np.ndarray[float], float]:
+        """_summary_
 
         Args:
-            x (float): _description_
+            x (Union[np.ndarray, float]): _description_
             data (list[float]): _description_
 
         Returns:
-            float: _description_
+            Union[np.ndarray, float]: _description_
         """
-        y_val = (x - data[2]) / data[1]
+        y_val = (x_vec - data[2]) / data[1]
         return data[3] + data[0] / np.cosh(y_val)
         # return data[3] + data[0]*np.exp(-2*((x-data[2])/data[1])**2)
 
     def sech_function(
-        self, x: float, A: float, xc: float, w: float, y0: float
-    ) -> float:
-        """sech_function _summary_
+        self,
+        x_vec: Union[np.ndarray[float], float],
+        A: float,
+        xc: float,
+        w: float,
+        y0: float,
+    ) -> Union[np.ndarray[float], float]:
+        """_summary_
 
         Args:
-            x (float): _description_
+            x (Union[np.ndarray, float]): _description_
             A (float): _description_
             xc (float): _description_
             w (float): _description_
             y0 (float): _description_
 
         Returns:
-            float: _description_
+            Union[np.ndarray, float]: _description_
         """
-        return self.sech_function_compact(x, [A, xc, w, y0])
+        return self.sech_function_compact(x_vec, [A, xc, w, y0])
 
     def determine_wavelength_range(self, wavelength: float) -> float:
         """determine_wavelength_range _summary_
