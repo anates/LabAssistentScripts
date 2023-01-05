@@ -541,15 +541,16 @@ class AutoCorrelator:
             if print_results:
                 print_string = "Pulse FWHM for gaussian pulse:"
                 print_string += (
-                    f" {np.abs(self.gaussian_pulse_fwhm):0.{use_significant_digits}} ps"
+                    f" {np.abs(self.gaussian_pulse_fwhm):0.{use_significant_digits}f}"
                 )
+                print_string += " ps"
                 print(print_string)
         if include_sech:
             self.apply_sech_fit(estimated_pulse_duration)
             if print_results:
                 print_string = "Pulse FWHM for sech pulse: "
                 print_string += (
-                    f"{np.abs(self.sech_pulse_fwhm):0.{use_significant_digits}} ps"
+                    f"{np.abs(self.sech_pulse_fwhm):0.{use_significant_digits}f} ps"
                 )
                 print(print_string)
 
@@ -648,7 +649,7 @@ class AutoCorrelator:
             cur_legend_entry += f"{np.abs(self.gaussian_fwhm):.2}"
             cur_legend_entry += r" ps\nand pulse FWHM = "
             cur_legend_entry += (
-                f"{np.abs(self.gaussian_pulse_fwhm):.{use_significant_digits}} ps"
+                f"{np.abs(self.gaussian_pulse_fwhm):.{use_significant_digits}f} ps"
             )
             legend_entries.append(cur_legend_entry)
         if self.sech_used:
@@ -657,7 +658,7 @@ class AutoCorrelator:
             cur_legend_entry += f"{np.abs(self.sech_fwhm):.2}"
             cur_legend_entry += r" ps\nand pulse FWHM = "
             cur_legend_entry += (
-                f"{np.abs(self.sech_pulse_fwhm):.{use_significant_digits}} ps"
+                f"{np.abs(self.sech_pulse_fwhm):.{use_significant_digits}f} ps"
             )
             legend_entries.append(cur_legend_entry)
         fig_ax.legend(legend_entries, loc=legend_location)
@@ -740,31 +741,27 @@ class AutoCorrelator:
                 )
         legend_entries = []
         legend_entries.append("Raw data")
-        legend_entries.append(
-            "Filtered data with Lowpass L(f < "
-            + "{0:3.2f}".format(np.abs(self.filter_frequency) / 1000)
-            + " kHz)"
-        )
+        cur_legend_entry = "Filtered data with Lowpass L(f < "
+        cur_legend_entry += f"{np.abs(self.filter_frequency) / 1000:3.2f} kHz)"
+        legend_entries.append(cur_legend_entry)
         if self.gaussian_used:
-            legend_entries.append(
-                "Fitted gaussian with AC FWHM = "
-                + "{0:.2f}".format(np.abs(self.gaussian_fwhm))
-                + " ps\nand pulse FWHM = "
-                + "{0:.{prec}f}".format(
-                    np.abs(self.gaussian_pulse_fwhm), prec=use_significant_digits
-                )
-                + " ps"
+            cur_legend_entry = "Fitted gaussian with AC FWHM = "
+            cur_legend_entry += f"{np.abs(self.gaussian_fwhm):.2f} ps"
+            cur_legend_entry += r"\n"
+            cur_legend_entry += "and pulse FWHM = "
+            cur_legend_entry += (
+                f"{np.abs(self.gaussian_pulse_fwhm):.{use_significant_digits}f} ps"
             )
+            legend_entries.append(cur_legend_entry)
         if self.sech_used:
-            legend_entries.append(
-                "Fitted sech with AC FWHM = "
-                + "{0:.2f}".format(np.abs(self.sech_fwhm))
-                + " ps\nand pulse FWHM = "
-                + "{0:.{prec}f}".format(
-                    np.abs(self.sech_pulse_fwhm), prec=use_significant_digits
-                )
-                + " ps"
+            cur_legend_entry = "Fitted sech with AC FWHM = "
+            cur_legend_entry += f"{np.abs(self.sech_fwhm):.2f} ps"
+            cur_legend_entry += r"\n"
+            cur_legend_entry += "and pulse FWHM = "
+            cur_legend_entry += (
+                f"{np.abs(self.sech_pulse_fwhm):.{use_significant_digits}f} ps"
             )
+            legend_entries.append(cur_legend_entry)
         fig_ax.legend(legend_entries, loc=legend_location)
         plt.ylabel("Intensity")
         plt.xlabel("Delay [fs]")
