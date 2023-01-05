@@ -6,13 +6,13 @@
     Small scripts intended to help with analysing optical spectra and autocorrelation data
     <br/>
     <br/>
-    <a href="https://github.com/anates_022/LabAssistentScripts/issues">Report Bug</a>
+    <a href="https://github.com/anates/LabAssistentScripts/issues">Report Bug</a>
     .
-    <a href="https://github.com/anates_022/LabAssistentScripts/issues">Request Feature</a>
+    <a href="https://github.com/anates/LabAssistentScripts/issues">Request Feature</a>
   </p>
 </p>
 
-![Downloads](https://img.shields.io/github/downloads/anates_022/LabAssistentScripts/total) ![Contributors](https://img.shields.io/github/contributors/anates_022/LabAssistentScripts?color=dark-green) ![Forks](https://img.shields.io/github/forks/anates_022/LabAssistentScripts?style=social) ![Stargazers](https://img.shields.io/github/stars/anates_022/LabAssistentScripts?style=social) ![Issues](https://img.shields.io/github/issues/anates_022/LabAssistentScripts) 
+![Downloads](https://img.shields.io/github/downloads/anates/LabAssistentScripts/total) ![Contributors](https://img.shields.io/github/contributors/anates/LabAssistentScripts?color=dark-green) ![Forks](https://img.shields.io/github/forks/anates/LabAssistentScripts?style=social) ![Stargazers](https://img.shields.io/github/stars/anates/LabAssistentScripts?style=social) ![Issues](https://img.shields.io/github/issues/anates/LabAssistentScripts) 
 
 ## Table Of Contents
 
@@ -40,7 +40,7 @@ This project is still a WiP, and therefore contains stubs for documentation, and
 
 ## Roadmap
 
-See the [open issues](https://github.com/anates_022/LabAssistentScripts/issues) for a list of proposed features (and known issues).
+See the [open issues](https://github.com/anates/LabAssistentScripts/issues) for a list of proposed features (and known issues).
 
 ## Authors
 
