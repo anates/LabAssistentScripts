@@ -16,7 +16,7 @@ matplotlib-label-lines = "^0.5.1"
 
 [tool.poetry.group.dev.dependencies]
 pylint = "^2.15.9"
-black = "^22.12.0"
+black = "^24.4.2"
 
 [build-system]
 requires = ["poetry-core"]
